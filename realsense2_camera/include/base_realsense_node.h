@@ -174,7 +174,7 @@ namespace realsense2_camera
         bool _intialize_time_base;
         double _camera_time_base;
         int _inter_cam_sync_mode;
-        bool _force_mavros_triggering;
+        bool _mavros_triggering;
         typedef struct{
           sensor_msgs::ImagePtr img;
           sensor_msgs::CameraInfo info;
