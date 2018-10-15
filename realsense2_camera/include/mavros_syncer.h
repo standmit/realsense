@@ -136,8 +136,9 @@ class MavrosSyncer {
         }
 
         if (frame_buffer_[channel].frame) {
-            ROS_WARN_STREAM_THROTTLE(3, log_prefix_ << 
+            ROS_WARN_STREAM_THROTTLE(1, log_prefix_ << 
                 "Overwriting image queue! Make sure you're getting Timestamps from mavros.");
+            restamp_callback_(channel, frame_buffer_[channel].old_stamp, frame_buffer_[channel].frame);
         }
 
         // set frame buffer
@@ -288,7 +289,7 @@ class MavrosSyncer {
     }
 
     ros::Time shiftTimestampToMidExposure(const ros::Time &stamp,double exposure_us) {
-        const double kalibr_time_offset = 9.25;
+        const double kalibr_time_offset = 0.0;
         ros::Time new_stamp = stamp
                             + ros::Duration(exposure_us * 1e-6 / 2.0)
                             + ros::Duration(kalibr_time_offset * 1e-3);
@@ -320,9 +321,12 @@ class MavrosSyncer {
             const double age_cached_frame = cam_imu_stamp.frame_stamp.toSec() - frame_buffer_[channel].old_stamp.toSec();
             
             if (age_cached_frame > kMaxExpectedDelay) {
-                // buffered frame is too old. empty frame buffer
+                // buffered frame is too old. release buffered frame
                 ROS_WARN_STREAM(log_prefix_ << "Delay out of bounds: Cached frame is older than "
-                                << kMaxExpectedDelay << " seconds. Clearing frame buffer...");
+                                << kMaxExpectedDelay << " seconds. Releasing buffered frame...");
+                
+                restamp_callback_(channel, frame_buffer_[channel].old_stamp, frame_buffer_[channel].frame);
+
                 frame_buffer_[channel].frame.reset();
                 trigger_buffer_map_[channel].clear();
                 trigger_buffer_map_[channel][cam_imu_stamp.frame_seq_id] = cam_imu_stamp.frame_stamp; 
