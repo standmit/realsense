@@ -289,10 +289,9 @@ class MavrosSyncer {
     }
 
     ros::Time shiftTimestampToMidExposure(const ros::Time &stamp,double exposure_us) {
-        const double kalibr_time_offset = 0.0;
         ros::Time new_stamp = stamp
                             + ros::Duration(exposure_us * 1e-6 / 2.0)
-                            + ros::Duration(kalibr_time_offset * 1e-3);
+                            + ros::Duration(kalibr_time_offset_ * 1e-3);
         return new_stamp;
     }
 

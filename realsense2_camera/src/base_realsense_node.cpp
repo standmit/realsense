@@ -22,7 +22,7 @@ BaseRealSenseNode::BaseRealSenseNode(ros::NodeHandle& nodeHandle,
     _serial_no(serial_no), _base_frame_id(""),
     _intialize_time_base(false),
     _namespace(getNamespaceStr()),
-    _trigger(std::set<stream_index_pair>({INFRA1}))
+    _mavros_syncer(std::set<stream_index_pair>({INFRA1}))
 {
     // Types for depth stream
     _is_frame_arrived[DEPTH] = false;
@@ -227,6 +227,7 @@ void BaseRealSenseNode::getParameters()
          ROS_WARN_STREAM("Invalid inter cam sync mode (" << inter_cam_sync_mode_param << ")! Not using inter cam sync mode.");
     }
 
+    _pnh.param("kalibr_time_offset", _kalibr_time_offset, KALIBR_TIME_OFFSET);
     _pnh.param("mavros_triggering", _mavros_triggering, MAVROS_TRIGGERING);
     if(_mavros_triggering && _inter_cam_sync_mode != 2){
         ROS_WARN_STREAM("Force mavros triggering enabled but device not set to slave triggering mode!");
@@ -255,7 +256,7 @@ void BaseRealSenseNode::getParameters()
 
             ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
         };
-        _trigger.setup(restamp_cb, _fps[DEPTH]);
+        _mavros_syncer.setup(restamp_cb, _kalibr_time_offset);
         ros::Duration(1.0).sleep(); // wait for alignment
     }
 }
@@ -657,7 +658,7 @@ void BaseRealSenseNode::setupStreams()
 
         if(_mavros_triggering) {
             ros::spinOnce();
-            _trigger.start();
+            _mavros_syncer.start();
             ros::spinOnce();
         }
 
@@ -1464,14 +1465,14 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
             // allow clearing of IMU queue before we lookup the timestamp
             ros::spinOnce();
 
-            if(!_trigger.lookupTriggerStamp(stream, cam_info.header.seq, t, exposure, &hw_synced_stamp)){
+            if(!_mavros_syncer.lookupTriggerStamp(stream, cam_info.header.seq, t, exposure, &hw_synced_stamp)){
 
                 auto cache = std::make_shared<cache_type>();
                 cache->img = img;
                 cache->info = cam_info;
 
                 // cache frame and return if timestamp not available
-                _trigger.cacheFrame(stream, cam_info.header.seq, t, exposure, cache);
+                _mavros_syncer.cacheFrame(stream, cam_info.header.seq, t, exposure, cache);
                 return;
             }else{
                 img->header.stamp = hw_synced_stamp;

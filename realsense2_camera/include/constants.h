@@ -70,6 +70,7 @@ namespace realsense2_camera
     const bool ENABLE_IMU     = true;
 
     const std::string INTER_CAM_SYNC_MODE              = "none";
+    const double KALIBR_TIME_OFFSET                    = 0.0;
 
     const std::string DEFAULT_BASE_FRAME_ID            = "camera_link";
     const std::string DEFAULT_DEPTH_FRAME_ID           = "camera_depth_frame";

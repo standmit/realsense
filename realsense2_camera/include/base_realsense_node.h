@@ -173,14 +173,16 @@ namespace realsense2_camera
         std::map<stream_index_pair, sensor_msgs::CameraInfo> _camera_info;
         bool _intialize_time_base;
         double _camera_time_base;
-        int _inter_cam_sync_mode;
-        bool _mavros_triggering;
         typedef struct{
           sensor_msgs::ImagePtr img;
           sensor_msgs::CameraInfo info;
         }cache_type;
-        mavros_syncer::MavrosSyncer<stream_index_pair, cache_type> _trigger;
         std::map<stream_index_pair, std::vector<rs2::stream_profile>> _enabled_profiles;
+
+        mavros_syncer::MavrosSyncer<stream_index_pair, cache_type> _mavros_syncer;
+        int _inter_cam_sync_mode;
+        bool _mavros_triggering;
+        double _kalibr_time_offset;
 
         ros::Publisher _pointcloud_publisher;
         ros::Time _ros_time_base;
