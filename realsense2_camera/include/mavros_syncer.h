@@ -1,9 +1,5 @@
-//
-// Created by mpantic on 19.09.18.
-//
-
-#ifndef REALSENSE2_CAMERA_MAVROS_TIMESTAMP_H
-#define REALSENSE2_CAMERA_MAVROS_TIMESTAMP_H
+#ifndef REALSENSE2_CAMERA_MAVROS_SYNCER_H
+#define REALSENSE2_CAMERA_MAVROS_SYNCER_H
 
 #include "ros/ros.h"
 #include <mavros_msgs/CamIMUStamp.h>
@@ -20,16 +16,15 @@
 //      on callback based drivers such as the realsense. If not locked properly, this can lead to weird states.
 
 
-namespace mavros_trigger {
-enum trigger_state {
-    ts_synced = 1,
-    ts_not_initalized,
-    ts_wait_for_sync,   // MAVROS reset sent, but no image/timestamps correlated yet.
-    ts_disabled
+namespace mavros_syncer {
+enum sync_state {
+    synced = 1,
+    not_initalized,
+    wait_for_sync,   // MAVROS reset sent, but no image/timestamps correlated yet.
 };
 
 template<typename t_chanel_id, typename t_cache>
-class MavrosTrigger {
+class MavrosSyncer {
 
     // callback definition for processing buffered frames (with type t_cache).
     typedef boost::function<void(const t_chanel_id &channel,
@@ -47,9 +42,9 @@ class MavrosTrigger {
 
  public:
 
-    MavrosTrigger(const std::set<t_chanel_id> &channel_set) :
+    MavrosSyncer(const std::set<t_chanel_id> &channel_set) :
             channel_set_(channel_set),
-            state_(ts_not_initalized) {
+            state_(not_initalized) {
         ROS_DEBUG_STREAM(log_prefix_ << " Initialized with " << channel_set_.size() << " channels.");
         for (t_chanel_id id : channel_set_) {
             trigger_buffer_map_[id].clear();
@@ -61,10 +56,10 @@ class MavrosTrigger {
 
         trigger_sequence_offset_ = 0;
         delay_pub_ = nh_.advertise<geometry_msgs::PointStamped>("delay", 100);
-        state_ = ts_not_initalized;
+        state_ = not_initalized;
         restamp_callback_ = callback;
         cam_imu_sub_ = nh_.subscribe("/mavros/cam_imu_sync/cam_imu_stamp", 100,
-                                     &MavrosTrigger::triggerStampCallback, this);
+                                     &MavrosSyncer::triggerStampCallback, this);
 
         const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
         const std::string mavros_trig_interval_srv = "/mavros/cmd/trigger_interval";
@@ -88,7 +83,6 @@ class MavrosTrigger {
                              1000.0/fps, req_interval.response.success, req_interval.response.result);
         } else {
             ROS_ERROR("Mavros service not available!");
-            state_ = ts_disabled;
         }
 
         ROS_DEBUG_STREAM(log_prefix_ << " Callback set and subscribed to cam_imu_stamp");
@@ -97,7 +91,7 @@ class MavrosTrigger {
     void start() {
         std::lock_guard<std::mutex> lg(mutex_);
 
-        if (state_ != ts_not_initalized) {
+        if (state_ != not_initalized) {
             //already started, ignore
             return;
         }
@@ -122,7 +116,7 @@ class MavrosTrigger {
 
         ROS_INFO_STREAM(log_prefix_ << " Started triggering.");
 
-        state_ = ts_wait_for_sync;
+        state_ = wait_for_sync;
     }
 
     bool channelValid(const t_chanel_id &channel) const {
@@ -175,7 +169,7 @@ class MavrosTrigger {
         frame_buffer_[channel].frame.reset();
         trigger_buffer_map_[channel].clear();
 
-        state_ = ts_synced;
+        state_ = synced;
         return true;
 
     }
@@ -198,7 +192,7 @@ class MavrosTrigger {
                         ", for seq nr: " << frame_seq <<
                         ", syncState: " << state_);
 
-        if (state_ == ts_not_initalized) {
+        if (state_ == not_initalized) {
             return true; // publish directly when not initialized (no caching)
         }
 
@@ -213,11 +207,11 @@ class MavrosTrigger {
                                             << kMaxExpectedDelay << " seconds. Clearing trigger buffer...");
             frame_buffer_[channel].frame.reset();
             trigger_buffer_map_[channel].clear();
-            state_ = ts_wait_for_sync;
+            state_ = wait_for_sync;
             return false; // do not publish and buffer frame if waiting to sync all buffered triggers are to old
         }
 
-        if (state_ == ts_wait_for_sync) {
+        if (state_ == wait_for_sync) {
             syncOffset(channel, frame_seq, old_stamp);
             return true; // publish directly and wait for seq offset sync
         }
@@ -257,7 +251,7 @@ class MavrosTrigger {
         // Function to match an incoming trigger to a buffered frame
         // Return true to publish frame, return false to buffer frame
 
-        if (state_ == ts_wait_for_sync) {
+        if (state_ == wait_for_sync) {
             return false; // do nothing if seq offset is not yet determined
         }
 
@@ -303,7 +297,7 @@ class MavrosTrigger {
 
     void triggerStampCallback(const mavros_msgs::CamIMUStamp &cam_imu_stamp) {
 
-        if (state_ == ts_not_initalized) {
+        if (state_ == not_initalized) {
             // Do nothing before triggering is setup and initialized
             return;
         }
@@ -362,7 +356,7 @@ class MavrosTrigger {
     std::mutex mutex_;
 
     caching_callback restamp_callback_;
-    trigger_state state_;
+    sync_state state_;
 
     std::map<t_chanel_id, std::string> logging_name_;
     std::map<t_chanel_id, frame_buffer_type> frame_buffer_;
@@ -372,4 +366,4 @@ class MavrosTrigger {
 
 }
 
-#endif //REALSENSE2_CAMERA_MAVROS_TIMESTAMP_H
+#endif //REALSENSE2_CAMERA_MAVROS_SYNCER_H

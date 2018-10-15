@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../include/mavros_timestamp.h"
+#include "../include/mavros_syncer.h"
 #include "../include/realsense_node_factory.h"
 #include <dynamic_reconfigure/server.h>
 #include <realsense2_camera/base_d400_paramsConfig.h>
@@ -179,7 +179,7 @@ namespace realsense2_camera
           sensor_msgs::ImagePtr img;
           sensor_msgs::CameraInfo info;
         }cache_type;
-        mavros_trigger::MavrosTrigger<stream_index_pair, cache_type> _trigger;
+        mavros_syncer::MavrosSyncer<stream_index_pair, cache_type> _trigger;
         std::map<stream_index_pair, std::vector<rs2::stream_profile>> _enabled_profiles;
 
         ros::Publisher _pointcloud_publisher;
