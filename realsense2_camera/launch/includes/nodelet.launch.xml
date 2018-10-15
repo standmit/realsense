@@ -62,13 +62,15 @@
   <arg name="accel_optical_frame_id"   default="$(arg tf_prefix)_accel_optical_frame"/>
   <arg name="gyro_optical_frame_id"    default="$(arg tf_prefix)_gyro_optical_frame"/>
   
-  <arg name="inter_cam_sync_mode" default="slave" />
-  <arg name="mavros_triggering"   default="true" />
+  <arg name="aligned_depth_to_color_frame_id"   default="$(arg tf_prefix)_aligned_depth_to_color_frame"/>
+  <arg name="aligned_depth_to_infra1_frame_id" default="$(arg tf_prefix)_aligned_depth_to_infra1_frame"/>
   <arg name="aligned_depth_to_infra2_frame_id"   default="$(arg tf_prefix)_aligned_depth_to_infra2_frame"/>
-  <arg name="aligned_depth_to_fisheye_frame_id"    default="$(arg tf_prefix)_aligned_depth_to_fisheye_frame"/>
+  <arg name="aligned_depth_to_fisheye_frame_id" default="$(arg tf_prefix)_aligned_depth_to_fisheye_frame"/>
 
   <arg name="filters"             default=""/>
 
+  <arg name="inter_cam_sync_mode" default="slave" />
+  <arg name="mavros_triggering"   default="true" />
 
   <node pkg="nodelet" type="nodelet" name="$(arg manager)" args="manager" output="screen"/>
   <node pkg="nodelet" type="nodelet" name="realsense2_camera" args="load realsense2_camera/RealSenseNodeFactory $(arg manager)" output="screen">
@@ -81,8 +83,6 @@
     <param name="pointcloud_texture_index"  type="int" value="$(arg pointcloud_texture_index)"/>
     <param name="enable_sync"              type="bool" value="$(arg enable_sync)"/>
     <param name="align_depth"              type="bool" value="$(arg align_depth)"/>
-    <param name="inter_cam_sync_mode"      type="str"  value="$(arg inter_cam_sync_mode)"/>
-    <param name="mavros_triggering"        type="bool" value="$(arg mavros_triggering)" />
 
     <param name="fisheye_width"            type="int"  value="$(arg fisheye_width)"/>
     <param name="fisheye_height"           type="int"  value="$(arg fisheye_height)"/>
@@ -130,9 +130,12 @@
     <param name="aligned_depth_to_color_frame_id"   type="str"  value="$(arg aligned_depth_to_color_frame_id)"/>
     <param name="aligned_depth_to_infra1_frame_id"  type="str"  value="$(arg aligned_depth_to_infra1_frame_id)"/>
     <param name="aligned_depth_to_infra2_frame_id"  type="str"  value="$(arg aligned_depth_to_infra2_frame_id)"/>
-    <param name="aligned_depth_to_fisheye_frame_id" type="str"  value="$(arg aligned_depth_to_fisheye_frame_id)"/>
+    <param name="aligned_depth_to_fisheye_frame_id" type="str" value="$(arg aligned_depth_to_fisheye_frame_id)"/>
     
     <param name="filters" type="str"  value="$(arg filters)"/>
+
+    <param name="inter_cam_sync_mode"      type="str"  value="$(arg inter_cam_sync_mode)"/>
+    <param name="mavros_triggering"        type="bool" value="$(arg mavros_triggering)" />
   </node>
 </launch>
 
