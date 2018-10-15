@@ -51,10 +51,11 @@ class MavrosSyncer {
         }
     }
 
-    void setup(const caching_callback &callback, int fps) {
+    void setup(const caching_callback &callback, int fps, double kalibr_time_offset) {
         std::lock_guard<std::mutex> lg(mutex_);
 
         trigger_sequence_offset_ = 0;
+        kalibr_time_offset_ = kalibr_time_offset;
         delay_pub_ = nh_.advertise<geometry_msgs::PointStamped>("delay", 100);
         state_ = not_initalized;
         restamp_callback_ = callback;
@@ -352,6 +353,7 @@ class MavrosSyncer {
 
     const std::set<t_chanel_id> channel_set_;
     int trigger_sequence_offset_ = 0;
+    double kalibr_time_offset_;
 
     ros::Subscriber cam_imu_sub_;
     ros::Publisher delay_pub_;
