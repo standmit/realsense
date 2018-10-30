@@ -256,7 +256,7 @@ void BaseRealSenseNode::getParameters()
 
             ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
         };
-        _mavros_syncer.setup(restamp_cb, _fps[DEPTH], _kalibr_time_offset);
+        _mavros_syncer.setup(restamp_cb, _fps[DEPTH], _kalibr_time_offset, _inter_cam_sync_mode);
         ros::Duration(1.0).sleep(); // wait for alignment
     }
 }

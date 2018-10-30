@@ -51,7 +51,7 @@ class MavrosSyncer {
         }
     }
 
-    void setup(const caching_callback &callback, int fps, double kalibr_time_offset) {
+    void setup(const caching_callback &callback, int fps, double kalibr_time_offset, int inter_cam_sync_mode) {
         std::lock_guard<std::mutex> lg(mutex_);
 
         trigger_sequence_offset_ = 0;
@@ -64,29 +64,29 @@ class MavrosSyncer {
 
         const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
         const std::string mavros_trig_interval_srv = "/mavros/cmd/trigger_interval";
-        if (ros::service::exists(mavros_trig_control_srv, false) && 
+        if (inter_cam_sync_mode == 2) { // if realsense is set as slave
+            if (ros::service::exists(mavros_trig_control_srv, false) && 
                 ros::service::exists(mavros_trig_interval_srv, false)) {
-            
-            // disable trigger until triggering is started
-            mavros_msgs::CommandTriggerControl req_control;
-            req_control.request.trigger_enable = false;
-            req_control.request.sequence_reset = true;
-            req_control.request.trigger_pause = false;
-            ros::service::call(mavros_trig_control_srv, req_control);
+                
+                // disable trigger until triggering is started
+                mavros_msgs::CommandTriggerControl req_control;
+                req_control.request.trigger_enable = false;
+                req_control.request.sequence_reset = true;
+                req_control.request.trigger_pause = false;
+                ros::service::call(mavros_trig_control_srv, req_control);
 
-            // set trigger cycle time
-            mavros_msgs::CommandTriggerInterval req_interval;
-            req_interval.request.cycle_time = 1000.0/fps;
-            req_interval.request.integration_time = -1.0;
-            ros::service::call(mavros_trig_interval_srv, req_interval);
+                // set trigger cycle time
+                mavros_msgs::CommandTriggerInterval req_interval;
+                req_interval.request.cycle_time = 1000.0/fps;
+                req_interval.request.integration_time = -1.0;
+                ros::service::call(mavros_trig_interval_srv, req_interval);
 
-            ROS_INFO("Set mavros trigger interval to %f! Success? %d Result? %d",
-                             1000.0/fps, req_interval.response.success, req_interval.response.result);
-        } else {
-            ROS_ERROR("Mavros service not available!");
+                ROS_INFO("Set mavros trigger interval to %f! Success? %d Result? %d",
+                                 1000.0/fps, req_interval.response.success, req_interval.response.result);
+            } else {
+                ROS_ERROR("Mavros service not available!");
+            }
         }
-
-        ROS_DEBUG_STREAM(log_prefix_ << " Callback set and subscribed to cam_imu_stamp");
     }
 
     void start() {
@@ -249,7 +249,7 @@ class MavrosSyncer {
 
 
     bool lookupFrame(const t_chanel_id &channel, const uint32_t trigger_seq, 
-                     const ros::Time &new_stamp, const ros::Time &old_stamp) {
+                     ros::Time new_stamp, const ros::Time &old_stamp) {
         // Function to match an incoming trigger to a buffered frame
         // Return true to publish frame, return false to buffer frame
 
@@ -272,6 +272,7 @@ class MavrosSyncer {
         }
 
         // successfully matched frame to cached trigger
+        new_stamp = shiftTimestampToMidExposure(new_stamp, frame_buffer_[channel].exposure);
         restamp_callback_(channel, new_stamp, frame_buffer_[channel].frame);
         
         // calc delay between mavros stamp and frame stamp
@@ -318,18 +319,15 @@ class MavrosSyncer {
             }
 
             const double kMaxExpectedDelay = 5e-3;
-            const double age_cached_frame = cam_imu_stamp.frame_stamp.toSec() - frame_buffer_[channel].old_stamp.toSec();
+            const double age_cached_frame = cam_imu_stamp.frame_stamp.toSec() - frame_buffer_[channel].arrival_stamp.toSec();
             
-            if (age_cached_frame > kMaxExpectedDelay) {
+            if (std::fabs(age_cached_frame) > kMaxExpectedDelay) {
                 // buffered frame is too old. release buffered frame
-                ROS_WARN_STREAM(log_prefix_ << "Delay out of bounds: Cached frame is older than "
+                ROS_WARN_STREAM(log_prefix_ << "Delay out of bounds:  "
                                 << kMaxExpectedDelay << " seconds. Releasing buffered frame...");
-                
-                restamp_callback_(channel, frame_buffer_[channel].old_stamp, frame_buffer_[channel].frame);
-
                 frame_buffer_[channel].frame.reset();
                 trigger_buffer_map_[channel].clear();
-                trigger_buffer_map_[channel][cam_imu_stamp.frame_seq_id] = cam_imu_stamp.frame_stamp; 
+                trigger_buffer_map_[channel][cam_imu_stamp.frame_seq_id] = cam_imu_stamp.frame_stamp;
                 return;
             }
 
