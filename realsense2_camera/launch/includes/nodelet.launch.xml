@@ -71,6 +71,7 @@
 
   <arg name="inter_cam_sync_mode" default="slave" />
   <arg name="mavros_triggering"   default="true" />
+  <arg name="kalibr_time_offset"   default="0.0" />
 
   <node pkg="nodelet" type="nodelet" name="$(arg manager)" args="manager" output="screen"/>
   <node pkg="nodelet" type="nodelet" name="realsense2_camera" args="load realsense2_camera/RealSenseNodeFactory $(arg manager)" output="screen">
@@ -136,6 +137,7 @@
 
     <param name="inter_cam_sync_mode"      type="str"  value="$(arg inter_cam_sync_mode)"/>
     <param name="mavros_triggering"        type="bool" value="$(arg mavros_triggering)" />
+    <param name="kalibr_time_offset"        type="double" value="$(arg kalibr_time_offset)" />
   </node>
 </launch>
 

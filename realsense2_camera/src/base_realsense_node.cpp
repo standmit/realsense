@@ -1459,8 +1459,13 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         ros::Time hw_synced_stamp = img->header.stamp;
         if(_mavros_triggering) {
 
-            double exposure = f.supports_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE) ?
-                              static_cast<double>(f.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE)) : 0.0;
+            double exposure = 0.0;
+            if(f.supports_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE)) {
+                exposure = static_cast<double>(f.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE));
+            } else {
+                ROS_WARN_ONCE("Frame does not provide exposure metadata. Using fixed exposure offset for timestamp...");
+                exposure = _sensors[DEPTH].get_option(RS2_OPTION_EXPOSURE);
+            } 
 
             // allow clearing of IMU queue before we lookup the timestamp
             ros::spinOnce();
