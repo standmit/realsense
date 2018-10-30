@@ -36,6 +36,7 @@ class MavrosSyncer {
     typedef struct {
         uint32_t seq;
         ros::Time old_stamp;
+        ros::Time arrival_stamp;
         std::shared_ptr<t_cache> frame;
         double exposure;
     } frame_buffer_type;
@@ -145,12 +146,14 @@ class MavrosSyncer {
         // set frame buffer
         frame_buffer_[channel].frame = frame;
         frame_buffer_[channel].old_stamp = original_stamp;
+        frame_buffer_[channel].arrival_stamp = ros::Time::now();
         frame_buffer_[channel].seq = seq;
         frame_buffer_[channel].exposure = exposure;
-        ROS_INFO_STREAM(log_prefix_ << "Buffered frame, seq: " << seq);
+        ROS_DEBUG_STREAM(log_prefix_ << "Buffered frame, seq: " << seq);
     }
 
     bool syncOffset(const t_chanel_id &channel, const uint32_t seq, const ros::Time &old_stamp) {
+
         // Get the first from the sequence time map.
         auto it = trigger_buffer_map_[channel].rbegin();
         int32_t mavros_sequence = it->first;
@@ -181,7 +184,6 @@ class MavrosSyncer {
                             ros::Time *new_stamp) {
         // Function to match an incoming frame to a buffered trigger
         // Return true to publish frame, return false to buffer frame
-
         std::lock_guard<std::mutex> lg(mutex_);
 
         if (!channelValid(channel)) {
@@ -189,8 +191,9 @@ class MavrosSyncer {
         }
 
         ROS_INFO_STREAM(log_prefix_ << "Received frame with stamp: " <<
-                        std::setprecision(16) <<
+                        std::setprecision(15) <<
                         old_stamp.toSec() << 
+                        " rn: " << ros::Time::now().toSec() <<
                         ", for seq nr: " << frame_seq <<
                         ", syncState: " << state_);
 
@@ -204,8 +207,8 @@ class MavrosSyncer {
 
         const double kMaxExpectedDelay = 5e-3;
         const double age_cached_trigger = old_stamp.toSec() - trigger_buffer_map_[channel].rbegin()->second.toSec();
-        if (age_cached_trigger > kMaxExpectedDelay) {
-            ROS_WARN_STREAM(log_prefix_ << "Delay out of bounds: Cached trigger is older than "
+        if (std::fabs(age_cached_trigger) > kMaxExpectedDelay) {
+            ROS_WARN_STREAM(log_prefix_ << "Delay out of bounds: "
                                             << kMaxExpectedDelay << " seconds. Clearing trigger buffer...");
             frame_buffer_[channel].frame.reset();
             trigger_buffer_map_[channel].clear();
@@ -294,6 +297,7 @@ class MavrosSyncer {
         ros::Time new_stamp = stamp
                             + ros::Duration(exposure_us * 1e-6 / 2.0)
                             + ros::Duration(kalibr_time_offset_ * 1e-3);
+        ROS_DEBUG_STREAM(log_prefix_ << "Shift timestamp: " << stamp.toSec() << " -> " << new_stamp.toSec() << " exposure: " << exposure_us * 1e-6);
         return new_stamp;
     }
 
@@ -305,8 +309,9 @@ class MavrosSyncer {
         }
 
         ROS_INFO_STREAM(log_prefix_ << "Received trigger stamp   : " <<
-                std::setprecision(16) <<
+                std::setprecision(15) <<
                 cam_imu_stamp.frame_stamp.toSec() <<
+                " rn: " << ros::Time::now().toSec() <<
                 ", for seq nr: " << cam_imu_stamp.frame_seq_id <<
                 " (synced_seq: " << cam_imu_stamp.frame_seq_id-trigger_sequence_offset_ << ")");
 
