@@ -257,7 +257,6 @@ void BaseRealSenseNode::getParameters()
             ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
         };
         _mavros_syncer.setup(restamp_cb, _fps[DEPTH], _kalibr_time_offset, _inter_cam_sync_mode);
-        ros::Duration(1.0).sleep(); // wait for alignment
     }
 }
 
@@ -1455,10 +1454,8 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         cam_info.header.stamp = img->header.stamp;
         cam_info.header.seq = img->header.seq;
 
-        // correct timestamp if needed
-        ros::Time hw_synced_stamp = img->header.stamp;
         if(_mavros_triggering) {
-
+            ros::Time hw_synced_stamp = img->header.stamp;
             double exposure = 0.0;
             if(f.supports_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE)) {
                 exposure = static_cast<double>(f.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE));
@@ -1477,19 +1474,25 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
                 cache->info = cam_info;
 
                 // cache frame and return if timestamp not available
-                _mavros_syncer.cacheFrame(stream, cam_info.header.seq, t, exposure, cache);
+                // return without publishing
+                _mavros_syncer.cacheFrame(stream, img->header.seq, t, exposure, cache);
                 return;
-            }else{
-                img->header.stamp = hw_synced_stamp;
-                cam_info.header.stamp =hw_synced_stamp;
             }
 
+            // matched frame to trigger: update header and stamp and publish
+            img->header.stamp = hw_synced_stamp;
+            cam_info.header.stamp =hw_synced_stamp;
+
+            info_publisher.publish(cam_info);
+            image_publisher.first.publish(img);
+            image_publisher.second->update();
+        } else {
+            // no hw_sync: publish w/o restamping
+            info_publisher.publish(cam_info);
+            image_publisher.first.publish(img);
+            image_publisher.second->update();
         }
 
-        info_publisher.publish(cam_info);
-
-        image_publisher.first.publish(img);
-        image_publisher.second->update();
         ROS_DEBUG("%s stream published", rs2_stream_to_string(f.get_profile().stream_type()));
     }
 }
