@@ -52,6 +52,7 @@ class MavrosSyncer {
 
     void setup(const caching_callback &callback, int fps, double kalibr_time_offset, int inter_cam_sync_mode) {
 
+        inter_cam_sync_mode_ = inter_cam_sync_mode;
         trigger_sequence_offset_ = 0;
         kalibr_time_offset_ = kalibr_time_offset;
         state_ = not_initalized;
@@ -65,7 +66,7 @@ class MavrosSyncer {
             // setup camera triggering on the fc
             if (ros::service::exists(mavros_trig_control_srv, false) && 
                 ros::service::exists(mavros_trig_interval_srv, false)) {
-                
+
                 // disable trigger until triggering is started
                 mavros_msgs::CommandTriggerControl req_control;
                 req_control.request.trigger_enable = false;
@@ -103,7 +104,7 @@ class MavrosSyncer {
 
         // Reset sequence number and enable triggering
         trigger_sequence_offset_ = 0;
-        if (inter_cam_sync_mode == 2) { 
+        if (inter_cam_sync_mode_ == 2) { 
             const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
             mavros_msgs::CommandTriggerControl req_enable;
             req_enable.request.trigger_enable = true;
@@ -353,6 +354,7 @@ class MavrosSyncer {
     const std::set<t_chanel_id> channel_set_;
     int trigger_sequence_offset_ = 0;
     double kalibr_time_offset_;
+    int inter_cam_sync_mode_;
 
     ros::Subscriber cam_imu_sub_;
     ros::Publisher delay_pub_;
