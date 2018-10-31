@@ -5,7 +5,6 @@
 #include <mavros_msgs/CamIMUStamp.h>
 #include <mavros_msgs/CommandTriggerControl.h>
 #include <mavros_msgs/CommandTriggerInterval.h>
-#include <sensor_msgs/Image.h>
 #include <geometry_msgs/PointStamped.h>
 #include <mutex>
 #include <tuple>
@@ -25,11 +24,10 @@ enum sync_state {
 
 template<typename t_chanel_id, typename t_cache>
 class MavrosSyncer {
-
-    // callback definition for processing buffered frames (with type t_cache).
+    // callback definition for processing buffered frames
     typedef boost::function<void(const t_chanel_id &channel,
-                                                             const ros::Time &new_stamp,
-                                                             const std::shared_ptr<t_cache> &cal)> caching_callback;
+                                 const ros::Time &new_stamp,
+                                 const std::shared_ptr<t_cache> &cal)> caching_callback;
 
     // internal representation of a buffered frame
     // t_cache is the external representation
@@ -53,11 +51,9 @@ class MavrosSyncer {
     }
 
     void setup(const caching_callback &callback, int fps, double kalibr_time_offset, int inter_cam_sync_mode) {
-        std::lock_guard<std::mutex> lg(mutex_);
 
         trigger_sequence_offset_ = 0;
         kalibr_time_offset_ = kalibr_time_offset;
-        delay_pub_ = nh_.advertise<geometry_msgs::PointStamped>("delay", 100);
         state_ = not_initalized;
         restamp_callback_ = callback;
         cam_imu_sub_ = nh_.subscribe("/mavros/cam_imu_sync/cam_imu_stamp", 100,
@@ -65,7 +61,8 @@ class MavrosSyncer {
 
         const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
         const std::string mavros_trig_interval_srv = "/mavros/cmd/trigger_interval";
-        if (inter_cam_sync_mode == 2) { // if realsense is set as slave
+        if (inter_cam_sync_mode == 2) { // if realsense is set as slave (TX)
+            // setup camera triggering on the fc
             if (ros::service::exists(mavros_trig_control_srv, false) && 
                 ros::service::exists(mavros_trig_interval_srv, false)) {
                 
@@ -85,7 +82,7 @@ class MavrosSyncer {
                 ROS_INFO("Set mavros trigger interval to %f! Success? %d Result? %d",
                                  1000.0/fps, req_interval.response.success, req_interval.response.result);
             } else {
-                ROS_ERROR("Mavros service not available!");
+                ROS_ERROR("Mavros service for trigger setup not available!");
             }
         }
     }
@@ -99,24 +96,25 @@ class MavrosSyncer {
         }
 
         for (t_chanel_id id : channel_set_) {
+            // clear buffers in case start() is invoked for re-initialization
             trigger_buffer_map_[id].clear();
             frame_buffer_[id].frame.reset();
         }
 
-        trigger_sequence_offset_ = 0;
-
         // Reset sequence number and enable triggering
-        const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
-        mavros_msgs::CommandTriggerControl req_enable;
-        req_enable.request.trigger_enable = true;
-        req_enable.request.sequence_reset = true;
-        req_enable.request.trigger_pause = false;
-        ros::service::call(mavros_trig_control_srv, req_enable);
-        
-        ROS_INFO("Called mavros trigger service! Success? %d Result? %d",
-                         req_enable.response.success, req_enable.response.result);
+        trigger_sequence_offset_ = 0;
+        if (inter_cam_sync_mode == 2) { 
+            const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
+            mavros_msgs::CommandTriggerControl req_enable;
+            req_enable.request.trigger_enable = true;
+            req_enable.request.sequence_reset = true;
+            req_enable.request.trigger_pause = false;
+            ros::service::call(mavros_trig_control_srv, req_enable);
 
-        ROS_INFO_STREAM(log_prefix_ << " Started triggering.");
+            ROS_INFO_STREAM(log_prefix_ << " Started triggering.");
+
+            ros::Duration(1.0).sleep(); // wait for the realsense to align its exposure to the external triggering
+        }
 
         state_ = wait_for_sync;
     }
@@ -139,13 +137,14 @@ class MavrosSyncer {
 
         if (frame_buffer_[channel].frame) {
             ROS_WARN_STREAM_THROTTLE(1, log_prefix_ << 
-                "Overwriting image queue! Make sure you're getting Timestamps from mavros.");
-            restamp_callback_(channel, frame_buffer_[channel].old_stamp, frame_buffer_[channel].frame);
+                "Overwriting image buffer! Make sure you're getting Timestamps from mavros.");
+            // commented so that frames are only published if they were matched to a valid stamp
+            // restamp_callback_(channel, frame_buffer_[channel].old_stamp, frame_buffer_[channel].frame);
         }
 
         // set frame buffer
         frame_buffer_[channel].frame = frame;
-        frame_buffer_[channel].old_stamp = original_stamp;
+        frame_buffer_[channel].old_stamp = original_stamp; //store stamp that was reconstructed by ros-realsense
         frame_buffer_[channel].arrival_stamp = ros::Time::now();
         frame_buffer_[channel].seq = seq;
         frame_buffer_[channel].exposure = exposure;
@@ -153,6 +152,7 @@ class MavrosSyncer {
     }
 
     bool syncOffset(const t_chanel_id &channel, const uint32_t seq, const ros::Time &old_stamp) {
+        // no lock_guard as this function is only called within locked scopes
 
         // Get the first from the sequence time map.
         auto it = trigger_buffer_map_[channel].rbegin();
@@ -183,11 +183,10 @@ class MavrosSyncer {
                             const ros::Time &old_stamp, double exposure, 
                             ros::Time *new_stamp) {
         // Function to match an incoming frame to a buffered trigger
-        // Return true to publish frame, return false to buffer frame
         std::lock_guard<std::mutex> lg(mutex_);
 
         if (!channelValid(channel)) {
-            return true; // return and publish image with unchanged stamp if not on synced stream
+            return false;
         }
 
         ROS_INFO_STREAM(log_prefix_ << "Received frame with stamp: " <<
@@ -198,39 +197,40 @@ class MavrosSyncer {
                         ", syncState: " << state_);
 
         if (state_ == not_initalized) {
-            return true; // publish directly when not initialized (no caching)
+            return false;
         }
 
         if (trigger_buffer_map_[channel].empty()) {
-            return false; // do not publish and buffer frame if empty trigger buffer
+            return false;
         }
 
-        const double kMaxExpectedDelay = 5e-3;
+        const double kMaxExpectedDelay = 10e-3;
         const double age_cached_trigger = old_stamp.toSec() - trigger_buffer_map_[channel].rbegin()->second.toSec();
+        
         if (std::fabs(age_cached_trigger) > kMaxExpectedDelay) {
             ROS_WARN_STREAM(log_prefix_ << "Delay out of bounds: "
                                             << kMaxExpectedDelay << " seconds. Clearing trigger buffer...");
             frame_buffer_[channel].frame.reset();
             trigger_buffer_map_[channel].clear();
             state_ = wait_for_sync;
-            return false; // do not publish and buffer frame if waiting to sync all buffered triggers are to old
+            return false;
         }
 
         if (state_ == wait_for_sync) {
             syncOffset(channel, frame_seq, old_stamp);
-            return true; // publish directly and wait for seq offset sync
+            return false;
         }
 
         uint32_t trigger_seq = frame_seq + trigger_sequence_offset_;
         auto it = trigger_buffer_map_[channel].find(trigger_seq);
 
-        // if we haven't found the sequence
+        // if we haven't found a matching stamp
         if (it == trigger_buffer_map_[channel].end()) {
             // cached trigger is within the expected delay but does not match the expected seq nr
             // call syncOffset()
             ROS_WARN_STREAM(log_prefix_ << "Could not find trigger for seq: " <<  trigger_seq);
             syncOffset(channel, frame_seq, old_stamp);
-            return false; // publish directly and wait for seq offset sync
+            return false;
         }
 
         *new_stamp = it->second;
@@ -241,11 +241,6 @@ class MavrosSyncer {
         ROS_INFO_STREAM(log_prefix_ << "Matched frame to trigger: t" << trigger_seq << " -> c" << frame_seq <<
                         ", t_old " <<  std::setprecision(15) << old_stamp.toSec() << " -> t_new " << new_stamp->toSec() 
                         << std::setprecision(7) << " ~ " << delay);
-
-        geometry_msgs::PointStamped msg;
-        msg.header.stamp = *new_stamp;
-        msg.point.x = delay;
-        delay_pub_.publish(msg);
 
         return true;
     }
@@ -293,7 +288,7 @@ class MavrosSyncer {
         return true;
     }
 
-    ros::Time shiftTimestampToMidExposure(const ros::Time &stamp,double exposure_us) {
+    ros::Time shiftTimestampToMidExposure(const ros::Time &stamp, double exposure_us) {
         ros::Time new_stamp = stamp
                             + ros::Duration(exposure_us * 1e-6 / 2.0)
                             + ros::Duration(kalibr_time_offset_ * 1e-3);
@@ -318,12 +313,12 @@ class MavrosSyncer {
         for (auto channel : channel_set_) {
 
             if (!frame_buffer_[channel].frame) {
-                // trigger_buffer_map_[channel].clear();
+                // buffer stamp if there is no buffered frame
                 trigger_buffer_map_[channel][cam_imu_stamp.frame_seq_id] = cam_imu_stamp.frame_stamp;
                 return;
             }
 
-            const double kMaxExpectedDelay = 5e-3;
+            const double kMaxExpectedDelay = 20e-3;
             const double age_cached_frame = cam_imu_stamp.frame_stamp.toSec() - frame_buffer_[channel].arrival_stamp.toSec();
             
             if (std::fabs(age_cached_frame) > kMaxExpectedDelay) {
@@ -338,6 +333,7 @@ class MavrosSyncer {
 
             if (!lookupFrame(channel, cam_imu_stamp.frame_seq_id, 
                              cam_imu_stamp.frame_stamp, frame_buffer_[channel].old_stamp)) {
+                // lookupFrame() returns false:
                 // waiting for sync or
                 // OR 
                 // seq numbers did not match: sync offsets
