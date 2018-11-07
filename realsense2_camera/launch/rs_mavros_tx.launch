@@ -21,7 +21,7 @@
         <arg name="kalibr_time_shift"  value="0.0"/>   <!-- time calibration offset from kalibr [ms]-->
     </include>
 
-    <node name="set_RS_param" pkg="realsense2_camera" type="realsense_params_RX.sh" />
+    <node name="set_RS_param" pkg="realsense2_camera" type="realsense_params_TX.sh" />
 
     <node pkg="rosbag" type="record" name="rosbag_record_cam_imu"
       args="record -o $(arg bag_prefix) 

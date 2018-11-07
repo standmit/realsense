@@ -319,7 +319,7 @@ class MavrosSyncer {
                 return;
             }
 
-            const double kMaxExpectedDelay = 20e-3;
+            const double kMaxExpectedDelay = 30e-3;
             const double age_cached_frame = cam_imu_stamp.frame_stamp.toSec() - frame_buffer_[channel].arrival_stamp.toSec();
             
             if (std::fabs(age_cached_frame) > kMaxExpectedDelay) {
