@@ -113,8 +113,6 @@ class MavrosSyncer {
             ros::service::call(mavros_trig_control_srv, req_enable);
 
             ROS_INFO_STREAM(log_prefix_ << " Started triggering.");
-
-            ros::Duration(1.0).sleep(); // wait for the realsense to align its exposure to the external triggering
         }
 
         state_ = wait_for_sync;
@@ -205,12 +203,12 @@ class MavrosSyncer {
             return false;
         }
 
-        const double kMaxExpectedDelay = 10e-3;
+        const double kMaxTriggerAge = 10e-3;
         const double age_cached_trigger = old_stamp.toSec() - trigger_buffer_map_[channel].rbegin()->second.toSec();
         
-        if (std::fabs(age_cached_trigger) > kMaxExpectedDelay) {
+        if (std::fabs(age_cached_trigger) > kMaxTriggerAge) {
             ROS_WARN_STREAM(log_prefix_ << "Delay out of bounds: "
-                                            << kMaxExpectedDelay << " seconds. Clearing trigger buffer...");
+                                            << kMaxTriggerAge << " seconds. Clearing trigger buffer...");
             frame_buffer_[channel].frame.reset();
             trigger_buffer_map_[channel].clear();
             state_ = wait_for_sync;
@@ -319,13 +317,13 @@ class MavrosSyncer {
                 return;
             }
 
-            const double kMaxExpectedDelay = 30e-3;
+            const double kMaxFrameAge = 30e-3;
             const double age_cached_frame = cam_imu_stamp.frame_stamp.toSec() - frame_buffer_[channel].arrival_stamp.toSec();
             
-            if (std::fabs(age_cached_frame) > kMaxExpectedDelay) {
+            if (std::fabs(age_cached_frame) > kMaxFrameAge) {
                 // buffered frame is too old. release buffered frame
                 ROS_WARN_STREAM(log_prefix_ << "Delay out of bounds:  "
-                                << kMaxExpectedDelay << " seconds. Releasing buffered frame...");
+                                << kMaxFrameAge << " seconds. Releasing buffered frame...");
                 frame_buffer_[channel].frame.reset();
                 trigger_buffer_map_[channel].clear();
                 trigger_buffer_map_[channel][cam_imu_stamp.frame_seq_id] = cam_imu_stamp.frame_stamp;
