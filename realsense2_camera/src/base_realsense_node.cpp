@@ -1493,8 +1493,7 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
             image_publisher.second->update();
         }
 
-        ROS_DEBUG("%s stream published", rs2_stream_to_string(f.get_profile().stream_type()));
-    }
+    ROS_DEBUG("%s stream published", rs2_stream_to_string(f.get_profile().stream_type()));
 }
 
 bool BaseRealSenseNode::getEnabledProfile(const stream_index_pair& stream_index, rs2::stream_profile& profile)
