@@ -680,10 +680,11 @@ void BaseRealSenseNode::setupStreams()
                 }
 
                 ros::Time t;
-                if (_sync_frames)
-                    t = ros::Time::now();
-                else
-                    t = ros::Time(_ros_time_base.toSec()+ (/*ms*/ frame.get_timestamp() - /*ms*/ _camera_time_base) / /*ms to seconds*/ 1000);
+                t = ros::Time::now();
+                // if (_sync_frames)
+                //     t = ros::Time::now();
+                // else
+                //     t = ros::Time(_ros_time_base.toSec()+ (/*ms*/ frame.get_timestamp() - /*ms*/ _camera_time_base) / /*ms to seconds*/ 1000);
 
                 std::map<stream_index_pair, bool> is_frame_arrived(_is_frame_arrived);
                 if (frame.is<rs2::frameset>())
