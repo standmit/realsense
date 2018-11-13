@@ -5,7 +5,6 @@
 #include <mavros_msgs/CamIMUStamp.h>
 #include <mavros_msgs/CommandTriggerControl.h>
 #include <mavros_msgs/CommandTriggerInterval.h>
-#include <geometry_msgs/PointStamped.h>
 #include <mutex>
 #include <tuple>
 
@@ -112,7 +111,7 @@ class MavrosSyncer {
             req_enable.request.trigger_pause = false;
             ros::service::call(mavros_trig_control_srv, req_enable);
 
-            ROS_INFO_STREAM(log_prefix_ << " Started triggering.");
+            ROS_INFO_STREAM(log_prefix_ << "Started hw sync...");
         }
 
         state_ = wait_for_sync;
@@ -188,7 +187,7 @@ class MavrosSyncer {
             return false;
         }
 
-        ROS_INFO_STREAM(log_prefix_ << "Received frame with stamp: " <<
+        ROS_DEBUG_STREAM(log_prefix_ << "Received frame with stamp: " <<
                         std::setprecision(15) <<
                         old_stamp.toSec() << 
                         " rn: " << ros::Time::now().toSec() <<
@@ -237,7 +236,7 @@ class MavrosSyncer {
         trigger_buffer_map_[channel].clear();
 
         const double delay = age_cached_trigger;
-        ROS_INFO_STREAM(log_prefix_ << "Matched frame to trigger: t" << trigger_seq << " -> c" << frame_seq <<
+        ROS_DEBUG_STREAM(log_prefix_ << "Matched frame to trigger: t" << trigger_seq << " -> c" << frame_seq <<
                         ", t_old " <<  std::setprecision(15) << old_stamp.toSec() << " -> t_new " << new_stamp->toSec() 
                         << std::setprecision(7) << " ~ " << delay);
 
@@ -274,15 +273,12 @@ class MavrosSyncer {
         
         // calc delay between mavros stamp and frame stamp
         const double delay = old_stamp.toSec() - new_stamp.toSec();
-        ROS_INFO_STREAM(log_prefix_ << "Matched trigger to frame: t" << trigger_seq << " -> c" << synced_seq <<
+        ROS_DEBUG_STREAM(log_prefix_ << "Matched trigger to frame: t" << trigger_seq << " -> c" << synced_seq <<
                         ", t_old " <<  std::setprecision(15) << old_stamp.toSec() << " -> t_new " << new_stamp.toSec() 
                         << std::setprecision(7) << " ~ " << delay);
 
-        geometry_msgs::PointStamped msg;
-        msg.header.stamp = new_stamp;
-        msg.point.x = delay;
-        delay_pub_.publish(msg);
         frame_buffer_[channel].frame.reset();
+        trigger_buffer_map_[channel].clear();
 
         return true;
     }
@@ -302,7 +298,7 @@ class MavrosSyncer {
             return;
         }
 
-        ROS_INFO_STREAM(log_prefix_ << "Received trigger stamp   : " <<
+        ROS_DEBUG_STREAM(log_prefix_ << "Received trigger stamp   : " <<
                 std::setprecision(15) <<
                 cam_imu_stamp.frame_stamp.toSec() <<
                 " rn: " << ros::Time::now().toSec() <<
@@ -355,7 +351,6 @@ class MavrosSyncer {
     int inter_cam_sync_mode_;
 
     ros::Subscriber cam_imu_sub_;
-    ros::Publisher delay_pub_;
     std::map<t_chanel_id, std::map<uint32_t, ros::Time>> trigger_buffer_map_;
     std::mutex mutex_;
 
