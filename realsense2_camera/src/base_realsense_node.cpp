@@ -813,7 +813,7 @@ void BaseRealSenseNode::setupStreams()
                     auto stream_index = frame.get_profile().stream_index();
                     updateIsFrameArrived(is_frame_arrived, stream_type, stream_index);
                     ROS_DEBUG("Single video frame arrived (%s, %d). frame_number: %llu ; frame_TS: %f ; ros_TS(NSec): %lu",
-                              rs2_stream_to_string(stream_type), stream_index, frame.get_frame_number(), frame.get_timestamp(), t.toNSec());
+                              rs2_stream_to_string(stream_type), stream_index, frame.get_frame_number(), frame.get_timestamp()/1000, t.toNSec());
 
                     stream_index_pair sip{stream_type,stream_index};
 
@@ -1456,7 +1456,6 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         cam_info.header.seq = img->header.seq;
 
         if(_mavros_triggering) {
-            ros::Time hw_synced_stamp = img->header.stamp;
             double exposure = 0.0;
             if(f.supports_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE)) {
                 exposure = static_cast<double>(f.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE));
@@ -1468,7 +1467,9 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
             // allow clearing of IMU queue before we lookup the timestamp
             ros::spinOnce();
 
-            if(!_mavros_syncer.lookupTriggerStamp(stream, cam_info.header.seq, t, exposure, &hw_synced_stamp)){
+            // init hw_synced_stamp equally to previous frame stamp. mavros_trigger will overwrite this stamp if a matching trigger is found
+            ros::Time hw_synced_stamp = img->header.stamp;
+            if(!_mavros_syncer.lookupTriggerStamp(stream, img->header.seq, t, exposure, hw_synced_stamp)){
 
                 auto cache = std::make_shared<cache_type>();
                 cache->img = img;
@@ -1482,7 +1483,7 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
 
             // matched frame to trigger: update header and stamp and publish
             img->header.stamp = hw_synced_stamp;
-            cam_info.header.stamp =hw_synced_stamp;
+            cam_info.header.stamp = hw_synced_stamp;
 
             info_publisher.publish(cam_info);
             image_publisher.first.publish(img);

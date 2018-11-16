@@ -68,6 +68,7 @@ class MavrosSyncer {
         restamp_callback_ = callback;
         cam_imu_sub_ = nh_.subscribe("/mavros/cam_imu_sync/cam_imu_stamp", 100,
                                      &MavrosSyncer::triggerStampCallback, this);
+        delay_pub_ = nh_.advertise<geometry_msgs::PointStamped>("/camera/mavros_restamping_info", 1);
 
         const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
         const std::string mavros_trig_interval_srv = "/mavros/cmd/trigger_interval";
@@ -121,7 +122,7 @@ class MavrosSyncer {
             req_enable.request.trigger_pause = false;
             ros::service::call(mavros_trig_control_srv, req_enable);
 
-            ROS_INFO_STREAM(log_prefix_ << "Started hw sync...");
+            ROS_INFO_STREAM(log_prefix_ << " Started triggering.");
         }
 
         state_ = wait_for_sync;
@@ -144,7 +145,7 @@ class MavrosSyncer {
         }
 
         if (frame_buffer_[channel].frame) {
-            ROS_WARN_STREAM_THROTTLE(1, log_prefix_ << 
+            ROS_WARN_STREAM(log_prefix_ << 
                 "Overwriting image buffer! Make sure you're getting Timestamps from mavros.");
             // commented so that frames are only published if they were matched to a valid stamp
             // restamp_callback_(channel, frame_buffer_[channel].old_stamp, frame_buffer_[channel].frame);
@@ -186,13 +187,16 @@ class MavrosSyncer {
                             const ros::Time &old_stamp, double exposure, 
                             ros::Time &trigger_stamp) {
         // Function to match an incoming frame to a buffered trigger
+        // Takes a trigger stamp that was initialized equally as the old frame stamp
+        // if a matching trigger was found the trigger_stamp is overwritten and the frame is published
+        // if no matching trigger is found we return without changing trigger_stamp
         std::lock_guard<std::mutex> lg(mutex_);
 
         if (!channelValid(channel)) {
             return false;
         }
 
-        ROS_DEBUG_STREAM(log_prefix_ << "Received frame with stamp: " <<
+        ROS_INFO_STREAM(log_prefix_ << "Received frame with stamp: " <<
                         std::setprecision(15) <<
                         old_stamp.toSec() << 
                         " rn: " << ros::Time::now().toSec() <<
@@ -246,6 +250,12 @@ class MavrosSyncer {
                         ", t_old " <<  std::setprecision(15) << old_stamp.toSec() << " -> t_new " << trigger_stamp.toSec() 
                         << std::setprecision(7) << " ~ " << delay);
 
+        geometry_msgs::PointStamped msg;
+        msg.header.stamp = trigger_stamp;
+        msg.point.x = delay;
+        msg.point.y = interval;
+        delay_pub_.publish(msg);
+
         return true;
     }
 
@@ -279,10 +289,16 @@ class MavrosSyncer {
         
         // calc delay between mavros stamp and frame stamp
         const double delay = old_stamp.toSec() - arrival_stamp.toSec();
-        ROS_DEBUG_STREAM(log_prefix_ << "Matched trigger to frame: t" << trigger_seq << " -> c" << synced_seq <<
+        const double interval = trigger_stamp.toSec() - prev_stamp_.toSec();
         ROS_INFO_STREAM(log_prefix_ << "Matched trigger to frame: t" << trigger_seq << " -> c" << expected_frame_seq <<
                         ", t_old " <<  std::setprecision(15) << old_stamp.toSec() << " -> t_new " << trigger_stamp.toSec() 
                         << std::setprecision(7) << " ~ " << delay);
+
+        geometry_msgs::PointStamped msg;
+        msg.header.stamp = trigger_stamp;
+        msg.point.x = delay;
+        msg.point.y = interval;
+        delay_pub_.publish(msg);
 
         frame_buffer_[channel].frame.reset();
         prev_stamp_ = trigger_stamp;
@@ -293,7 +309,8 @@ class MavrosSyncer {
         ros::Time new_stamp = stamp
                             + ros::Duration(exposure_us * 1e-6 / 2.0)
                             + ros::Duration(kalibr_time_offset_ * 1e-3);
-        ROS_DEBUG_STREAM(log_prefix_ << "Shift timestamp: " << stamp.toSec() << " -> " << new_stamp.toSec() << " exposure: " << exposure_us * 1e-6);
+        ROS_DEBUG_STREAM(log_prefix_ << "Shift timestamp: " << stamp.toSec() << " -> " << 
+                         new_stamp.toSec() << " exposure: " << exposure_us * 1e-6);
         return new_stamp;
     }
 
