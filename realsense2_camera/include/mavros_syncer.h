@@ -66,6 +66,8 @@ class MavrosSyncer {
         kalibr_time_offset_ = kalibr_time_offset;
         state_ = not_initalized;
         restamp_callback_ = callback;
+        frame_rate_ = fps;
+
         cam_imu_sub_ = nh_.subscribe("/mavros/cam_imu_sync/cam_imu_stamp", 100,
                                      &MavrosSyncer::triggerStampCallback, this);
         delay_pub_ = nh_.advertise<geometry_msgs::PointStamped>("/camera/mavros_restamping_info", 1);
@@ -86,12 +88,12 @@ class MavrosSyncer {
 
                 // set trigger cycle time
                 mavros_msgs::CommandTriggerInterval req_interval;
-                req_interval.request.cycle_time = 1000.0/fps;
+                req_interval.request.cycle_time = 1000.0/frame_rate_;
                 req_interval.request.integration_time = -1.0;
                 ros::service::call(mavros_trig_interval_srv, req_interval);
 
                 ROS_INFO("Set mavros trigger interval to %f! Success? %d Result? %d",
-                                 1000.0/fps, req_interval.response.success, req_interval.response.result);
+                                 1000.0/frame_rate_, req_interval.response.success, req_interval.response.result);
             } else {
                 ROS_ERROR("Mavros service for trigger setup not available!");
             }
@@ -211,7 +213,7 @@ class MavrosSyncer {
             return false;
         }
 
-        const double kMaxTriggerAge = 10e-3;
+        const double kMaxTriggerAge = 1.0/frame_rate_;
         const double age_cached_trigger = old_stamp.toSec() - trigger_buffer_[channel].arrival_stamp.toSec();
         
         if (std::fabs(age_cached_trigger) > kMaxTriggerAge) {
@@ -338,12 +340,12 @@ class MavrosSyncer {
                 // buffer stamp if there is no buffered frame
                 trigger_buffer_[channel].seq = trigger_seq;
                 trigger_buffer_[channel].arrival_stamp = arrival_stamp;
-                trigger_buffer_[channel].trigger_stamp = arrival_stamp;
+                trigger_buffer_[channel].trigger_stamp = trigger_stamp;
                 return;
             }
 
-            const double kMaxFrameAge = 30e-3;
-            const double age_cached_frame = trigger_buffer_[channel].arrival_stamp.toSec() 
+            const double kMaxFrameAge = 0e-3;
+            const double age_cached_frame = arrival_stamp.toSec() 
                                           - frame_buffer_[channel].arrival_stamp.toSec();
             
             if (std::fabs(age_cached_frame) > kMaxFrameAge) {
@@ -354,19 +356,19 @@ class MavrosSyncer {
                 // buffer stamp and wait for next frame
                 trigger_buffer_[channel].seq = trigger_seq;
                 trigger_buffer_[channel].arrival_stamp = arrival_stamp;
-                trigger_buffer_[channel].trigger_stamp = arrival_stamp;
+                trigger_buffer_[channel].trigger_stamp = trigger_stamp;
                 return;
             }
 
             if (!lookupFrame(channel, trigger_seq, 
-                             arrival_stamp, arrival_stamp, frame_buffer_[channel].old_stamp)) {
+                             trigger_stamp, arrival_stamp, frame_buffer_[channel].old_stamp)) {
                 // lookupFrame() returns false:
                 // waiting for sync or
                 // OR 
                 // seq numbers did not match: sync offsets
                 trigger_buffer_[channel].seq = trigger_seq;
                 trigger_buffer_[channel].arrival_stamp = arrival_stamp;
-                trigger_buffer_[channel].trigger_stamp = arrival_stamp;
+                trigger_buffer_[channel].trigger_stamp = trigger_stamp;
                 syncOffset(channel, frame_buffer_[channel].seq, frame_buffer_[channel].old_stamp);
                 return;
             }
@@ -383,6 +385,7 @@ class MavrosSyncer {
     int trigger_sequence_offset_ = 0;
     double kalibr_time_offset_;
     int inter_cam_sync_mode_;
+    int frame_rate_;
 
     ros::Time prev_stamp_;
 
