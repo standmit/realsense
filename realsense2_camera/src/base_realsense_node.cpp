@@ -22,7 +22,7 @@ BaseRealSenseNode::BaseRealSenseNode(ros::NodeHandle& nodeHandle,
     _serial_no(serial_no), _base_frame_id(""),
     _intialize_time_base(false),
     _namespace(getNamespaceStr()),
-    _mavros_syncer(std::set<stream_index_pair>({INFRA1}))
+    _external_timestamp(std::set<stream_index_pair>({INFRA1}))
 {
     // Types for depth stream
     _is_frame_arrived[DEPTH] = false;
@@ -227,7 +227,7 @@ void BaseRealSenseNode::getParameters()
          ROS_WARN_STREAM("Invalid inter cam sync mode (" << inter_cam_sync_mode_param << ")! Not using inter cam sync mode.");
     }
 
-    _pnh.param("kalibr_time_offset", _kalibr_time_offset, KALIBR_TIME_OFFSET);
+    _pnh.param("kalibr_time_offset", _static_time_offset, KALIBR_TIME_OFFSET);
     _pnh.param("mavros_triggering", _mavros_triggering, MAVROS_TRIGGERING);
     if(_mavros_triggering && _inter_cam_sync_mode != 2){
         ROS_WARN_STREAM("Force mavros triggering enabled but device not set to slave triggering mode!");
@@ -239,9 +239,9 @@ void BaseRealSenseNode::getParameters()
         // create callback for cached images
         std::function<void(const stream_index_pair& channel,
                            const ros::Time& new_stamp,
-                           const std::shared_ptr<cache_type>&)> restamp_cb = [this](const stream_index_pair& channel,
-                                                                             const ros::Time& new_stamp,
-                                                                             const  std::shared_ptr<cache_type>& f_ptr){
+                           const std::shared_ptr<frame_buffer_type>&)> publish_frame_fn = [this](const stream_index_pair& channel,
+                                                                                   const ros::Time& new_stamp,
+                                                                                   const  std::shared_ptr<frame_buffer_type>& f_ptr){
             // restamp frame
             f_ptr->img->header.stamp = new_stamp;
             f_ptr->info.header.stamp = new_stamp;
@@ -256,7 +256,7 @@ void BaseRealSenseNode::getParameters()
 
             ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
         };
-        _mavros_syncer.setup(restamp_cb, _fps[DEPTH], _kalibr_time_offset, _inter_cam_sync_mode);
+        _external_timestamp.setup(publish_frame_fn, _fps[DEPTH], _static_time_offset, _inter_cam_sync_mode);
     }
 }
 
@@ -657,7 +657,7 @@ void BaseRealSenseNode::setupStreams()
 
         if(_mavros_triggering) {
             ros::spinOnce();
-            _mavros_syncer.start();
+            _external_timestamp.start();
             ros::spinOnce();
         }
 
@@ -1469,15 +1469,15 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
 
             // init hw_synced_stamp equally to previous frame stamp. mavros_trigger will overwrite this stamp if a matching trigger is found
             ros::Time hw_synced_stamp = img->header.stamp;
-            if(!_mavros_syncer.lookupTriggerStamp(stream, img->header.seq, t, exposure, hw_synced_stamp)){
+            if(!_external_timestamp.lookupHardwareStamp(stream, img->header.seq, t, exposure, hw_synced_stamp)){
 
-                auto cache = std::make_shared<cache_type>();
-                cache->img = img;
-                cache->info = cam_info;
+                auto frame = std::make_shared<frame_buffer_type>();
+                frame->img = img;
+                frame->info = cam_info;
 
                 // cache frame and return if timestamp not available
                 // return without publishing
-                _mavros_syncer.cacheFrame(stream, img->header.seq, t, exposure, cache);
+                _external_timestamp.cacheFrame(stream, img->header.seq, t, exposure, frame);
                 return;
             }
 
@@ -1494,6 +1494,7 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
             image_publisher.first.publish(img);
             image_publisher.second->update();
         }
+    }
 
     ROS_DEBUG("%s stream published", rs2_stream_to_string(f.get_profile().stream_type()));
 }
