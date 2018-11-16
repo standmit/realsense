@@ -69,8 +69,6 @@ namespace realsense2_camera
     const bool ENABLE_FISHEYE = true;
     const bool ENABLE_IMU     = true;
 
-    const std::string INTER_CAM_SYNC_MODE              = "none";
-    const double KALIBR_TIME_OFFSET                    = 0.0;
 
     const std::string DEFAULT_BASE_FRAME_ID            = "camera_link";
     const std::string DEFAULT_DEPTH_FRAME_ID           = "camera_depth_frame";
@@ -95,6 +93,9 @@ namespace realsense2_camera
     const std::string DEFAULT_ALIGNED_DEPTH_TO_FISHEYE_FRAME_ID = "camera_aligned_depth_to_fisheye_frame";
 
     const std::string DEFAULT_FILTERS                  = "";
+    const int INTER_CAM_SYNC_MODE                      = 0;
+    const double STATIC_TIME_OFFSET                    = 0.0;
+    const bool EXTERNAL_HW_SYNC                        = false;
 
     using stream_index_pair = std::pair<rs2_stream, int>;
 }  // namespace realsense2_camera

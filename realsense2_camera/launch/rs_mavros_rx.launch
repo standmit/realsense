@@ -15,10 +15,9 @@
     <include file="$(find realsense2_camera)/launch/rs_camera.launch">
         <arg name="enable_color" value="false"/>
         <arg name="depth_fps" value="$(arg cam_fps)"/>
-        <arg name="mavros_restamping"   value="$(arg hw_sync)"/>
-        <arg name="enable_sync" value="true"/>
-        <arg name="inter_cam_sync_mode" value="master" if="$(arg hw_sync)"/>
-        <arg name="kalibr_time_shift"  value="0.0"/>   <!-- time calibration offset from kalibr [ms]-->
+        <arg name="external_hw_sync"   value="$(arg hw_sync)"/>
+        <arg name="inter_cam_sync_mode" value="1" if="$(arg hw_sync)"/>
+        <arg name="static_time_shift"  value="0.0"/>   <!-- time calibration offset from static [ms]-->
     </include>
 
     <node name="set_RS_param" pkg="realsense2_camera" type="realsense_params_RX.sh" />

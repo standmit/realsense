@@ -181,7 +181,7 @@ namespace realsense2_camera
 
         external_timestamp::ExternalTimestamp<stream_index_pair, frame_buffer_type> _external_timestamp;
         int _inter_cam_sync_mode;
-        bool _mavros_triggering;
+        bool _external_hw_sync;
         double _static_time_offset;
 
         ros::Publisher _pointcloud_publisher;
