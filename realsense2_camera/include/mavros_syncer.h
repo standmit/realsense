@@ -310,7 +310,7 @@ class MavrosSyncer {
     ros::Time shiftTimestampToMidExposure(const ros::Time &stamp, double exposure_us) {
         ros::Time new_stamp = stamp
                             + ros::Duration(exposure_us * 1e-6 / 2.0)
-                            + ros::Duration(kalibr_time_offset_ * 1e-3);
+                            + ros::Duration(kalibr_time_offset_);
         ROS_DEBUG_STREAM(log_prefix_ << "Shift timestamp: " << stamp.toSec() << " -> " << 
                          new_stamp.toSec() << " exposure: " << exposure_us * 1e-6);
         return new_stamp;
