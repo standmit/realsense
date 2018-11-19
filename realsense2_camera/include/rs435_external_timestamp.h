@@ -3,7 +3,6 @@
 
 #include "ros/ros.h"
 #include <std_msgs/Header.h>
-#include <geometry_msgs/PointStamped.h>
 #include <mutex>
 #include <tuple>
 
@@ -70,32 +69,6 @@ class ExternalTimestamp {
         _state = sync_state::not_initalized;
 
         _cam_imu_sub = nh_.subscribe("/hw_stamp", 100, &ExternalTimestamp::hwStampCallback, this);
-        // const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
-        // const std::string mavros_trig_interval_srv = "/mavros/cmd/trigger_interval";
-        // if (inter_cam_sync_mode == inter_cam_sync_mode::slave) {
-        //     // setup camera triggering on the fc
-        //     if (ros::service::exists(mavros_trig_control_srv, false) && 
-        //         ros::service::exists(mavros_trig_interval_srv, false)) {
-
-        //         // disable trigger until triggering is started
-        //         mavros_msgs::CommandTriggerControl req_control;
-        //         req_control.request.trigger_enable = false;
-        //         req_control.request.sequence_reset = true;
-        //         req_control.request.trigger_pause = false;
-        //         ros::service::call(mavros_trig_control_srv, req_control);
-
-        //         // set trigger cycle time
-        //         mavros_msgs::CommandTriggerInterval req_interval;
-        //         req_interval.request.cycle_time = 1000.0/_frame_rate;
-        //         req_interval.request.integration_time = -1.0;
-        //         ros::service::call(mavros_trig_interval_srv, req_interval);
-
-        //         ROS_INFO("Set mavros trigger interval to %f! Success? %d Result? %d",
-        //                          1000.0/_frame_rate, req_interval.response.success, req_interval.response.result);
-        //     } else {
-        //         ROS_ERROR("Mavros service for trigger setup not available!");
-        //     }
-        // }
     }
 
     void start() {
@@ -111,19 +84,6 @@ class ExternalTimestamp {
             _hw_stamp_buffer[channel].reset();
             _frame_buffer[channel].frame.reset();
         }
-
-        // Reset sequence number and enable triggering
-        // _hw_stamp_seq_offset = 0;
-        // if (inter_cam_sync_mode == inter_cam_sync_mode::slave) { 
-        //     const std::string mavros_trig_control_srv = "/mavros/cmd/trigger_control";
-        //     mavros_msgs::CommandTriggerControl req_enable;
-        //     req_enable.request.trigger_enable = true;
-        //     req_enable.request.sequence_reset = true;
-        //     req_enable.request.trigger_pause = false;
-        //     ros::service::call(mavros_trig_control_srv, req_enable);
-
-        //     ROS_INFO_STREAM(_log_prefix << " Started triggering.");
-        // }
 
         _state = sync_state::wait_for_sync;
     }
@@ -350,7 +310,7 @@ class ExternalTimestamp {
     pub_frame_fn _publish_frame_fn;
     sync_state _state;
 
-    const std::string _log_prefix = "[Mavros Triggering] ";
+    const std::string _log_prefix = "[HW timesync] ";
     std::map<t_chanel_id, hw_stamp_buffer_type> _hw_stamp_buffer;
     std::map<t_chanel_id, frame_buffer_type> _frame_buffer;
 
