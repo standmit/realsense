@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<launch> 
+    <arg name="cam_fps" default="30"/>
+
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <arg name="enable_color" value="false"/>
+        <arg name="depth_fps" value="$(arg cam_fps)"/>
+        <arg name="external_hw_sync"   value="true"/>
+        <arg name="inter_cam_sync_mode" value="1"/>
+        <arg name="static_time_offset"  value="0.007"/>   <!-- time calibration offset from static [ms]-->
+    </include>
+
+    <node name="set_RS_param" pkg="realsense2_camera" type="realsense_params_RX.sh" />
+</launch>
