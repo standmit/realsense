@@ -256,7 +256,7 @@ class ExternalTimestamp {
 
     ros::Time shiftTimestampToMidExposure(const ros::Time &stamp, double exposure_us) {
         ros::Time new_stamp = stamp
-                            + ros::Duration(exposure_us * 1e-6 / 2.0)
+                            - ros::Duration(exposure_us * 1e-6 / 2.0)
                             + ros::Duration(_static_time_offset);
         ROS_DEBUG_STREAM(_log_prefix << "Shift timestamp: " << stamp.toSec() << " -> " << 
                          new_stamp.toSec() << " exposure: " << exposure_us * 1e-6);
