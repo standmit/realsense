@@ -179,11 +179,6 @@ namespace realsense2_camera
         }frame_buffer_type;
         std::map<stream_index_pair, std::vector<rs2::stream_profile>> _enabled_profiles;
 
-        external_timestamp::ExternalTimestamp<stream_index_pair, frame_buffer_type> _external_timestamp;
-        int _inter_cam_sync_mode;
-        bool _external_hw_sync;
-        double _static_time_offset;
-
         ros::Publisher _pointcloud_publisher;
         ros::Time _ros_time_base;
         bool _align_depth;
@@ -208,6 +203,11 @@ namespace realsense2_camera
 
         std::map<stream_index_pair, bool> _is_frame_arrived;
         const std::string _namespace;
+        
+        int _inter_cam_sync_mode;
+        bool _external_hw_sync;
+        double _static_time_offset;
+        external_timestamp::ExternalTimestamp<stream_index_pair, frame_buffer_type> _external_timestamp;
     };//end class
 
     class BaseD400Node : public BaseRealSenseNode

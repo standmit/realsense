@@ -138,22 +138,20 @@ class ExternalTimestamp {
     }
 
     bool lookupHardwareStamp(const t_chanel_id &channel, const uint32_t frame_seq,
-                            const ros::Time &cam_stamp, double exposure, std::shared_ptr<t_frame_buffer> frame) {
-        // Function to match an incoming frame to a buffered trigger
-        // Takes a trigger stamp that was initialized equally as the old frame stamp
-        // if a matching trigger was found the trigger_stamp is overwritten and the frame is published
-        // if no matching trigger is found we return without changing trigger_stamp
+                            const ros::Time &cam_stamp, double exposure, std::shared_ptr<t_frame_buffer> frame) { 
+        // Method to match an incoming frame to a buffered trigger
+        // if a matching hw stamp was found we return true and publish the restamped frame
+        // if no matching trigger is found we return false and the frame is buffered
         std::lock_guard<std::mutex> lg(_mutex);
 
         if (!channelValid(channel)) {
             return false;
         }
 
-        ROS_INFO_STREAM(_log_prefix << "Received frame with stamp: " <<
+        ROS_INFO_STREAM(_log_prefix << "Received frame, stamp: " <<
                         std::setprecision(15) <<
                         cam_stamp.toSec() << 
-                        " rn: " << ros::Time::now().toSec() <<
-                        ", for seq nr: " << frame_seq);
+                        ", seq nr: " << frame_seq);
 
         if (_state == sync_state::not_initalized) {
             return false;
@@ -165,7 +163,6 @@ class ExternalTimestamp {
 
         const double kMaxStampAge = 1.0/_frame_rate;
         const double age_buffered_hw_stamp = cam_stamp.toSec() - _hw_stamp_buffer[channel].arrival_stamp.toSec();
-        
         if (std::fabs(age_buffered_hw_stamp) > kMaxStampAge) {
             ROS_WARN_STREAM(_log_prefix << "Delay out of bounds: " << 
                             kMaxStampAge << " seconds. Clearing hw stamp buffer...");
@@ -196,9 +193,9 @@ class ExternalTimestamp {
         hw_stamp = shiftTimestampToMidExposure(hw_stamp, exposure);
         _publish_frame_fn(channel, hw_stamp, frame);
 
-        ROS_INFO_STREAM(_log_prefix << "Matched frame to trigger: t" << expected_hw_stamp_seq << " -> c" << frame_seq <<
-                        ", t_old " <<  std::setprecision(15) << cam_stamp.toSec() << " -> t_new " << hw_stamp.toSec() 
-                        << std::setprecision(7) << " ~ " << age_buffered_hw_stamp);
+        ROS_INFO_STREAM(_log_prefix << "Matched: #" << expected_hw_stamp_seq << " -> #" << frame_seq <<
+                        ", t_cam " <<  std::setprecision(15) << cam_stamp.toSec() << " -> t_hw " << hw_stamp.toSec() 
+                        << std::setprecision(7) << " delay: " << age_buffered_hw_stamp);
         _hw_stamp_buffer[channel].reset();
 
         return true;
@@ -207,11 +204,12 @@ class ExternalTimestamp {
 
     bool lookupFrame(const t_chanel_id channel, const uint32_t hw_stamp_seq, 
                      ros::Time &hw_stamp, const ros::Time &arrival_stamp) {
-        // Function to match an incoming trigger to a buffered frame
-        // Return true to publish frame, return false to buffer frame
+        // Method to match an incoming trigger to a buffered frame
+        // if a matching frame was found we return true and publish the restamped frame
+        // if no matching frame is found we return false and the frame is buffered
 
         if (!_publish_frame_fn) {
-            ROS_ERROR_STREAM(_log_prefix << " No callback set - discarding buffered images.");
+            ROS_ERROR_STREAM(_log_prefix << " No publish function set - discarding buffered images.");
             return false;
         }
 
@@ -219,11 +217,11 @@ class ExternalTimestamp {
             return false;
         }
 
-        const double kMaxFrameAge = 0e-3;
+        const double kMaxFrameAge = 0e-3; // currently set to 0 to consider only frames that arrive after the hw stamp
         const double age_buffered_frame = arrival_stamp.toSec() 
                                         - _frame_buffer[channel].arrival_stamp.toSec(); 
         if (std::fabs(age_buffered_frame) > kMaxFrameAge) {
-            // buffered frame is too old. release buffered frame
+            // buffered frame is out . release buffered frame
             ROS_WARN_STREAM(_log_prefix << "Delay out of bounds:  "
                             << kMaxFrameAge << " seconds. Releasing buffered frame...");
             return false;
@@ -246,7 +244,7 @@ class ExternalTimestamp {
         hw_stamp = shiftTimestampToMidExposure(hw_stamp, _frame_buffer[channel].exposure);
         _publish_frame_fn(channel, hw_stamp, _frame_buffer[channel].frame);
         
-        ROS_INFO_STREAM(_log_prefix << "Matched trigger to frame: t" << hw_stamp_seq << " -> c" << expected_frame_seq <<
+        ROS_INFO_STREAM(_log_prefix << "Matched: #" << hw_stamp_seq << " -> #" << expected_frame_seq <<
                         ", t_old " << _frame_buffer[channel].cam_stamp.toSec() << 
                         " -> t_new " << hw_stamp.toSec() << " ~ " << age_buffered_frame);
         _frame_buffer[channel].frame.reset();
@@ -277,9 +275,8 @@ class ExternalTimestamp {
         ROS_INFO_STREAM(_log_prefix << "Received hw stamp   : " <<
                 std::setprecision(15) <<
                 hw_stamp.toSec() <<
-                " rn: " << ros::Time::now().toSec() <<
-                ", for seq nr: " << hw_stamp_seq <<
-                " (synced_seq: " << hw_stamp_seq-_hw_stamp_seq_offset << ")");
+                ", seq nr: " << hw_stamp_seq <<
+                " (synced frame_seq: " << hw_stamp_seq-_hw_stamp_seq_offset << ")");
 
         for (auto channel : _channel_set) {
 
