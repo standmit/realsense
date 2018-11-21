@@ -212,7 +212,7 @@ void BaseRealSenseNode::getParameters()
 
     // setup external hardware synchronization
     if(_external_hw_sync){
-        // create callback for cached images
+        // define function to publish restamped frames
         std::function<void(const stream_index_pair& channel,
                            const ros::Time& new_stamp,
                            const std::shared_ptr<frame_buffer_type>&)> publish_frame_fn = [this](const stream_index_pair& channel,
@@ -232,6 +232,7 @@ void BaseRealSenseNode::getParameters()
 
             ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
         };
+        // setup external time stamping and hand-over the the function that shall be used to publish restamped frames
         _external_timestamp.setup(publish_frame_fn, _fps[DEPTH], _static_time_offset, _inter_cam_sync_mode);
     }
 }
@@ -632,9 +633,7 @@ void BaseRealSenseNode::setupStreams()
         }
 
         if(_external_hw_sync) {
-            ros::spinOnce();
             _external_timestamp.start();
-            ros::spinOnce();
         }
 
         auto frame_callback = [this](rs2::frame frame)
@@ -1445,7 +1444,6 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
             frame->img = img;
             frame->info = cam_info;
             if(!_external_timestamp.lookupHardwareStamp(stream, img->header.seq, t, exposure, frame)){
-
                 // buffer frame if no matching timestamp was found
                 _external_timestamp.bufferFrame(stream, img->header.seq, t, exposure, frame);
             }
