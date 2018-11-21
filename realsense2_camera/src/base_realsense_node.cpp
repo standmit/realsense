@@ -655,11 +655,10 @@ void BaseRealSenseNode::setupStreams()
                 }
 
                 ros::Time t;
-                t = ros::Time::now();
-                // if (_sync_frames)
-                //     t = ros::Time::now();
-                // else
-                //     t = ros::Time(_ros_time_base.toSec()+ (/*ms*/ frame.get_timestamp() - /*ms*/ _camera_time_base) / /*ms to seconds*/ 1000);
+                if (_sync_frames || _external_hw_sync)
+                    t = ros::Time::now();
+                else
+                    t = ros::Time(_ros_time_base.toSec()+ (/*ms*/ frame.get_timestamp() - /*ms*/ _camera_time_base) / /*ms to seconds*/ 1000);
 
                 std::map<stream_index_pair, bool> is_frame_arrived(_is_frame_arrived);
                 if (frame.is<rs2::frameset>())
@@ -788,7 +787,7 @@ void BaseRealSenseNode::setupStreams()
                     auto stream_index = frame.get_profile().stream_index();
                     updateIsFrameArrived(is_frame_arrived, stream_type, stream_index);
                     ROS_DEBUG("Single video frame arrived (%s, %d). frame_number: %llu ; frame_TS: %f ; ros_TS(NSec): %lu",
-                              rs2_stream_to_string(stream_type), stream_index, frame.get_frame_number(), frame.get_timestamp()/1000, t.toNSec());
+                              rs2_stream_to_string(stream_type), stream_index, frame.get_frame_number(), frame.get_timestamp(), t.toNSec());
 
                     stream_index_pair sip{stream_type,stream_index};
 
@@ -1413,8 +1412,9 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
     ++(seq[stream]);
     auto& info_publisher = info_publishers.at(stream);
     auto& image_publisher = image_publishers.at(stream);
-    if(0 != info_publisher.getNumSubscribers() ||
-       0 != image_publisher.first.getNumSubscribers())
+    // if(0 != info_publisher.getNumSubscribers() ||
+    //    0 != image_publisher.first.getNumSubscribers())
+    if(true)
     {
         sensor_msgs::ImagePtr img;
         img = cv_bridge::CvImage(std_msgs::Header(), encoding.at(stream), image).toImageMsg();
@@ -1424,11 +1424,12 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         img->step = width * bpp;
         img->header.frame_id = optical_frame_id.at(stream);
         img->header.stamp = t;
-        img->header.seq = f.get_frame_number();
+        img->header.seq = seq[stream];
 
         auto& cam_info = camera_info.at(stream);
-        cam_info.header.stamp = img->header.stamp;
-        cam_info.header.seq = img->header.seq;
+        cam_info.header.stamp = t;
+        cam_info.header.seq = seq[stream];
+        info_publisher.publish(cam_info);
 
         if(_external_hw_sync) {
             double exposure;
@@ -1451,7 +1452,6 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         }
             
         // no hw_sync: publish w/o restamping
-        info_publisher.publish(cam_info);
         image_publisher.first.publish(img);
         image_publisher.second->update();
     }
