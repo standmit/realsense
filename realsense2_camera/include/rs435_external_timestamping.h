@@ -1,12 +1,12 @@
-#ifndef REALSENSE2_CAMERA_RS435_EXTERNAL_TIMESTAMP_H
-#define REALSENSE2_CAMERA_RS435_EXTERNAL_TIMESTAMP_H
+#ifndef REALSENSE2_CAMERA_RS435_EXTERNAL_TIMESTAMING_H
+#define REALSENSE2_CAMERA_RS435_EXTERNAL_TIMESTAMPING_H
 
 #include "ros/ros.h"
 #include <std_msgs/Header.h>
 #include <mutex>
 #include <tuple>
 
-namespace external_timestamp {
+namespace external_timestamping {
 enum class sync_state {
     synced = 1,
     not_initalized,
@@ -20,7 +20,7 @@ enum class inter_cam_sync_mode {
 };
 
 template<typename t_chanel_id, typename t_frame_buffer>
-class ExternalTimestamp {
+class ExternalTimestamping {
     // template that holds the function used to publish restamped frames
     typedef boost::function<void(const t_chanel_id &channel,
                                  const ros::Time &stamp,
@@ -48,7 +48,7 @@ class ExternalTimestamp {
 
  public:
 
-    ExternalTimestamp(const std::set<t_chanel_id> &channel_set) :
+    ExternalTimestamping(const std::set<t_chanel_id> &channel_set) :
             _channel_set(channel_set),
             _state(sync_state::not_initalized) {
         ROS_DEBUG_STREAM(_log_prefix << " Initialized with " << _channel_set.size() << " channels.");
@@ -66,7 +66,7 @@ class ExternalTimestamp {
         _publish_frame_fn = pub_function_ptr;
         _state = sync_state::not_initalized;
 
-        _cam_imu_sub = nh_.subscribe("/hw_stamp", 100, &ExternalTimestamp::hwStampCallback, this);
+        _cam_imu_sub = nh_.subscribe("/hw_stamp", 100, &ExternalTimestamping::hwStampCallback, this);
     }
 
     void start() {
@@ -292,4 +292,4 @@ class ExternalTimestamp {
 
 }
 
-#endif //REALSENSE2_CAMERA_RS435_EXTERNAL_TIMESTAMP_H
+#endif //REALSENSE2_CAMERA_RS435_EXTERNAL_TIMESTAMPING_H

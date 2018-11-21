@@ -22,7 +22,7 @@ BaseRealSenseNode::BaseRealSenseNode(ros::NodeHandle& nodeHandle,
     _serial_no(serial_no), _base_frame_id(""),
     _intialize_time_base(false),
     _namespace(getNamespaceStr()),
-    _external_timestamp(std::set<stream_index_pair>({INFRA1}))
+    _external_timestamper(std::set<stream_index_pair>({INFRA1}))
 {
     // Types for depth stream
     _is_frame_arrived[DEPTH] = false;
@@ -233,7 +233,7 @@ void BaseRealSenseNode::getParameters()
             ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
         };
         // setup external time stamping and hand-over the the function that shall be used to publish restamped frames
-        _external_timestamp.setup(publish_frame_fn, _fps[DEPTH], _static_time_offset, _inter_cam_sync_mode);
+        _external_timestamper.setup(publish_frame_fn, _fps[DEPTH], _static_time_offset, _inter_cam_sync_mode);
     }
 }
 
@@ -633,7 +633,7 @@ void BaseRealSenseNode::setupStreams()
         }
 
         if(_external_hw_sync) {
-            _external_timestamp.start();
+            _external_timestamper.start();
         }
 
         auto frame_callback = [this](rs2::frame frame)
@@ -1412,9 +1412,8 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
     ++(seq[stream]);
     auto& info_publisher = info_publishers.at(stream);
     auto& image_publisher = image_publishers.at(stream);
-    // if(0 != info_publisher.getNumSubscribers() ||
-    //    0 != image_publisher.first.getNumSubscribers())
-    if(true)
+    if(0 != info_publisher.getNumSubscribers() ||
+       0 != image_publisher.first.getNumSubscribers())
     {
         sensor_msgs::ImagePtr img;
         img = cv_bridge::CvImage(std_msgs::Header(), encoding.at(stream), image).toImageMsg();
@@ -1444,9 +1443,9 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
             auto frame = std::make_shared<frame_buffer_type>();
             frame->img = img;
             frame->info = cam_info;
-            if(!_external_timestamp.lookupHardwareStamp(stream, img->header.seq, t, exposure, frame)){
+            if(!_external_timestamper.lookupHardwareStamp(stream, img->header.seq, t, exposure, frame)){
                 // buffer frame if no matching timestamp was found
-                _external_timestamp.bufferFrame(stream, img->header.seq, t, exposure, frame);
+                _external_timestamper.bufferFrame(stream, img->header.seq, t, exposure, frame);
             }
             return;
         }

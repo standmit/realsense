@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../include/rs435_external_timestamp.h"
+#include "../include/rs435_external_timestamping.h"
 #include "../include/realsense_node_factory.h"
 #include <dynamic_reconfigure/server.h>
 #include <realsense2_camera/base_d400_paramsConfig.h>
@@ -207,7 +207,7 @@ namespace realsense2_camera
         int _inter_cam_sync_mode;
         bool _external_hw_sync;
         double _static_time_offset;
-        external_timestamp::ExternalTimestamp<stream_index_pair, frame_buffer_type> _external_timestamp;
+        external_timestamping::ExternalTimestamping<stream_index_pair, frame_buffer_type> _external_timestamper;
     };//end class
 
     class BaseD400Node : public BaseRealSenseNode
