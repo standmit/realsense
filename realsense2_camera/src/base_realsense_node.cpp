@@ -340,6 +340,7 @@ void BaseRealSenseNode::setupDevice()
         if(_inter_cam_sync_mode != 0)
         {
             _sensors[DEPTH].set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, _inter_cam_sync_mode);
+            _sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, 1);
             ROS_INFO_STREAM("Inter cam sync mode set to " << _inter_cam_sync_mode);
         }
     }
@@ -1431,6 +1432,9 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         info_publisher.publish(cam_info);
 
         if(_external_hw_sync) {
+            if(_sensors[DEPTH].get_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED) != 1) {
+        	_sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, 1);
+	    }
             double exposure;
             if(f.supports_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE)) {
                 exposure = static_cast<double>(f.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE));

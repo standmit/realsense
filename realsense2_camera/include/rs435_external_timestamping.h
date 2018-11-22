@@ -152,7 +152,7 @@ class ExternalTimestamping {
         const double kMaxStampAge = 1.0/_frame_rate;
         const double age_buffered_hw_stamp = cam_stamp.toSec() - _hw_stamp_buffer[channel].arrival_stamp.toSec();
         if (std::fabs(age_buffered_hw_stamp) > kMaxStampAge) {
-            ROS_WARN_STREAM(_log_prefix << "Delay out of bounds: " << 
+            ROS_DEBUG_STREAM(_log_prefix << "Delay out of bounds: " << 
                             kMaxStampAge << " seconds. Clearing hw stamp buffer...");
             _hw_stamp_buffer[channel].reset();
 
@@ -165,7 +165,7 @@ class ExternalTimestamping {
             // there is a buffered stamp and it is within the expected time interval
             // however, we did not determine the sequence yet or the seq id did not match the one we expected 
             // call syncSeqOffset to set or reset the seq id offset between frames and stamps
-            ROS_WARN_STREAM(_log_prefix << "Could not find hw stamp for seq: " <<  expected_hw_stamp_seq);
+            ROS_WARN_STREAM(_log_prefix << "Dropped stamp: could not find hw stamp with seq id: " <<  expected_hw_stamp_seq);
             syncSeqOffset(channel, frame_seq, age_buffered_hw_stamp);
         }
 
@@ -175,7 +175,7 @@ class ExternalTimestamping {
         _publish_frame_fn(channel, hw_stamp, frame);
 
         ROS_INFO_STREAM(_log_prefix <<  std::setprecision(15) << 
-            "frame#" << expected_hw_stamp_seq << " -> stamp#" << frame_seq <<
+            "frame#" << frame_seq << " -> stamp#" << expected_hw_stamp_seq <<
             ", t_cam " << cam_stamp.toSec() << " -> t_hw " << hw_stamp.toSec() << 
             std::setprecision(7) << " delay: " << age_buffered_hw_stamp);
         
@@ -201,7 +201,7 @@ class ExternalTimestamping {
         const double age_buffered_frame = arrival_stamp.toSec() 
                                         - _frame_buffer[channel].arrival_stamp.toSec(); 
         if (std::fabs(age_buffered_frame) > kMaxFrameAge) {
-            ROS_WARN_STREAM(_log_prefix << "Delay out of bounds:  "
+            ROS_DEBUG_STREAM(_log_prefix << "Delay out of bounds:  "
                             << kMaxFrameAge << " seconds. Releasing buffered frame...");
             _frame_buffer[channel].frame.reset();
             
@@ -215,7 +215,7 @@ class ExternalTimestamping {
             // however, the seq id offset is not set or it does not match the expected stamp seq id
             // call syncSeqOffset() to set or reset the offset between frame and stamp seq id
             syncSeqOffset(channel, _frame_buffer[channel].seq, age_buffered_frame);
-            ROS_WARN_STREAM(_log_prefix << "Could not find frame for seq: " << expected_frame_seq);
+            ROS_WARN_STREAM(_log_prefix << "Dropped frame: could not find frame with seq id: " << expected_frame_seq);
         }
 
         // successful match: shift stamp and publish frame
@@ -223,7 +223,7 @@ class ExternalTimestamping {
         _publish_frame_fn(channel, hw_stamp, _frame_buffer[channel].frame);
         
         ROS_DEBUG_STREAM(_log_prefix << std::setprecision(15) << 
-            "frame#" << hw_stamp_seq << " -> stamp#" << expected_frame_seq <<
+            "frame#" << expected_frame_seq << " -> stamp#" << hw_stamp_seq <<
             ", t_old " << _frame_buffer[channel].cam_stamp.toSec() << 
             " -> t_new " << hw_stamp.toSec() << 
             std::setprecision(7) << " delay: " << age_buffered_frame);
