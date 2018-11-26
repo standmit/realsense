@@ -10,13 +10,13 @@
 
 namespace external_timestamping {
 enum class sync_state {
-    synced = 1,
+    synced,
     not_initalized,
     wait_for_sync,
 };
 
 enum class inter_cam_sync_mode {
-    none = 0,
+    none,
     master,
     slave
 };
