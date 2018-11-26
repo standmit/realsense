@@ -201,7 +201,7 @@ namespace realsense2_camera
         const std::string _namespace;
         
         int _inter_cam_sync_mode;
-        bool _external_hw_sync;
+        bool _enable_external_hw_sync;
         double _static_time_offset;
         external_timestamping::ExternalTimestamping<stream_index_pair> _external_timestamper;
     };//end class

@@ -69,7 +69,7 @@
 
   <arg name="filters"             default=""/>
   <arg name="inter_cam_sync_mode" default="0"/>
-  <arg name="external_hw_sync"    default="false"/>
+  <arg name="enable_external_hw_sync"    default="false"/>
   <arg name="static_time_offset"  default="0.0"/>
 
   <node pkg="nodelet" type="nodelet" name="$(arg manager)" args="manager" output="screen"/>
@@ -134,7 +134,7 @@
     
     <param name="filters" type="str"  value="$(arg filters)"/>
     <param name="inter_cam_sync_mode"      type="int"  value="$(arg inter_cam_sync_mode)"/>
-    <param name="external_hw_sync"         type="bool" value="$(arg external_hw_sync)" />
+    <param name="enable_external_hw_sync"         type="bool" value="$(arg enable_external_hw_sync)" />
     <param name="static_time_offset"       type="double" value="$(arg static_time_offset)"/>
   </node>
 </launch>

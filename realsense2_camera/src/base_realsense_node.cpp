@@ -207,7 +207,7 @@ void BaseRealSenseNode::getParameters()
     _pnh.param("aligned_depth_to_fisheye_frame_id", _depth_aligned_frame_id[FISHEYE], DEFAULT_ALIGNED_DEPTH_TO_FISHEYE_FRAME_ID);
 
     _pnh.param("inter_cam_sync_mode", _inter_cam_sync_mode, INTER_CAM_SYNC_MODE);
-    _pnh.param("external_hw_sync", _external_hw_sync, EXTERNAL_HW_SYNC);
+    _pnh.param("enable_external_hw_sync", _enable_external_hw_sync, EXTERNAL_HW_SYNC);
     _pnh.param("static_time_offset", _static_time_offset, STATIC_TIME_OFFSET);
 }
 
@@ -607,7 +607,7 @@ void BaseRealSenseNode::setupStreams()
             }
         }
 
-        if(_external_hw_sync) {
+        if(_enable_external_hw_sync) {
             // setup external hardware synchronization
             // define function to publish restamped frames
             std::function<void(const stream_index_pair& channel,
@@ -655,7 +655,7 @@ void BaseRealSenseNode::setupStreams()
                 }
 
                 ros::Time t;
-                if (_sync_frames || _external_hw_sync)
+                if (_sync_frames || _enable_external_hw_sync)
                     t = ros::Time::now();
                 else
                     t = ros::Time(_ros_time_base.toSec()+ (/*ms*/ frame.get_timestamp() - /*ms*/ _camera_time_base) / /*ms to seconds*/ 1000);
@@ -1430,7 +1430,7 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         cam_info.header.seq = seq[stream];
         info_publisher.publish(cam_info);
 
-        if(_external_hw_sync) {
+        if(_enable_external_hw_sync) {
             if(_sensors[DEPTH].get_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED) != 1) {
         	_sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, 1);
 	    }

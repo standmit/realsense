@@ -43,7 +43,7 @@
   <arg name="filters"             default=""/>
 
   <arg name="inter_cam_sync_mode" default="0"/>
-  <arg name="external_hw_sync"    default="false"/>
+  <arg name="enable_external_hw_sync"   default="false"/>
   <arg name="static_time_offset"  default="0.0"/>
 
   <group ns="$(arg camera)">
@@ -90,7 +90,7 @@
       <arg name="filters"                  value="$(arg filters)"/>
       
       <arg name="inter_cam_sync_mode"      value="$(arg inter_cam_sync_mode)"/>
-      <arg name="external_hw_sync"        value="$(arg external_hw_sync)"/>
+      <arg name="enable_external_hw_sync"  value="$(arg enable_external_hw_sync)"/>
       <arg name="static_time_offset"       value="$(arg static_time_offset)"/>
     </include>
   </group>
