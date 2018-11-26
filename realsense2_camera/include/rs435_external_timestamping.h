@@ -3,6 +3,8 @@
 
 #include "ros/ros.h"
 #include <std_msgs/Header.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/CameraInfo.h>
 #include <mutex>
 #include <tuple>
 
@@ -19,21 +21,24 @@ enum class inter_cam_sync_mode {
     slave
 };
 
-template<typename t_chanel_id, typename t_frame_buffer>
+template<typename t_chanel_id>
 class ExternalTimestamping {
     // template that holds the function used to publish restamped frames
     typedef boost::function<void(const t_chanel_id &channel,
                                  const ros::Time &stamp,
-                                 const std::shared_ptr<t_frame_buffer> &cal)> pub_frame_fn;
+                                 const sensor_msgs::ImagePtr image,
+                                 const sensor_msgs::CameraInfo info)> pub_frame_fn;
 
-    // internal representation of a buffered frame
-    // t_frame_buffer is the external representation
     typedef struct {
         uint32_t seq;
         ros::Time cam_stamp;
         ros::Time arrival_stamp;
-        std::shared_ptr<t_frame_buffer> frame;
+        sensor_msgs::ImagePtr img;
+        sensor_msgs::CameraInfo info;
         double exposure;
+        void reset() {
+            seq = 0;
+        }
     } frame_buffer_type;
 
     typedef struct {
@@ -77,7 +82,7 @@ class ExternalTimestamping {
         for (t_chanel_id channel : _channel_set) {
             // clear buffers in case start() is invoked for re-initialization
             _hw_stamp_buffer[channel].reset();
-            _frame_buffer[channel].frame.reset();
+            _frame_buffer[channel].img.reset();
         }
 
         _state = sync_state::wait_for_sync;
@@ -88,7 +93,7 @@ class ExternalTimestamping {
     }
 
     void bufferFrame(const t_chanel_id &channel, const uint32_t seq, const ros::Time &cam_stamp, 
-                    double exposure, const std::shared_ptr<t_frame_buffer> frame) {
+                    double exposure, const sensor_msgs::ImagePtr img, const sensor_msgs::CameraInfo info) {
         std::lock_guard<std::mutex> lg(_mutex);
 
         if (!channelValid(channel)) {
@@ -96,13 +101,14 @@ class ExternalTimestamping {
             return;
         }
 
-        if (_frame_buffer[channel].frame) {
+        if (_frame_buffer[channel].img) {
             ROS_WARN_STREAM(_log_prefix << 
                 "Overwriting image buffer! Make sure you are getting Timestamps from mavros.");
         }
 
         // set frame buffer
-        _frame_buffer[channel].frame = frame;
+        _frame_buffer[channel].img = img;
+        _frame_buffer[channel].info = info;
         _frame_buffer[channel].seq = seq;
         _frame_buffer[channel].arrival_stamp = ros::Time::now();
         _frame_buffer[channel].cam_stamp = cam_stamp; //store stamp that was constructed by ros-realsense
@@ -124,7 +130,8 @@ class ExternalTimestamping {
     }
 
     bool lookupHardwareStamp(const t_chanel_id &channel, const uint32_t frame_seq,
-                            const ros::Time &cam_stamp, double exposure, std::shared_ptr<t_frame_buffer> frame) { 
+                            const ros::Time &cam_stamp, double exposure, 
+                            const sensor_msgs::ImagePtr img, const sensor_msgs::CameraInfo info) { 
         // Method to match an incoming frame to a buffered trigger
         // if a matching HW stamp was found we return true and publish the restamped frame
         // if no matching trigger is found we return false to buffer the frame
@@ -172,7 +179,7 @@ class ExternalTimestamping {
         // successful match: shift stamp and publish frame
         ros::Time hw_stamp = _hw_stamp_buffer[channel].hw_stamp;
         hw_stamp = shiftTimestampToMidExposure(hw_stamp, exposure);
-        _publish_frame_fn(channel, hw_stamp, frame);
+        _publish_frame_fn(channel, hw_stamp, img, info);
 
         ROS_INFO_STREAM(_log_prefix <<  std::setprecision(15) << 
             "frame#" << frame_seq << " -> stamp#" << expected_hw_stamp_seq <<
@@ -191,7 +198,7 @@ class ExternalTimestamping {
         // if no matching frame is found we return false and the frame is buffered
         std::lock_guard<std::mutex> lg(_mutex);
 
-        if (!_frame_buffer[channel].frame) {
+        if (!_frame_buffer[channel].img) {
             // empty frame buffer. return false to buffer stamp
             return false;
         }
@@ -203,7 +210,7 @@ class ExternalTimestamping {
         if (std::fabs(age_buffered_frame) > kMaxFrameAge) {
             ROS_DEBUG_STREAM(_log_prefix << "Delay out of bounds:  "
                             << kMaxFrameAge << " seconds. Releasing buffered frame...");
-            _frame_buffer[channel].frame.reset();
+            _frame_buffer[channel].img.reset();
             
             _state = sync_state::wait_for_sync;
             return false;
@@ -220,7 +227,7 @@ class ExternalTimestamping {
 
         // successful match: shift stamp and publish frame
         hw_stamp = shiftTimestampToMidExposure(hw_stamp, _frame_buffer[channel].exposure);
-        _publish_frame_fn(channel, hw_stamp, _frame_buffer[channel].frame);
+        _publish_frame_fn(channel, hw_stamp, _frame_buffer[channel].img, _frame_buffer[channel].info);
         
         ROS_DEBUG_STREAM(_log_prefix << std::setprecision(15) << 
             "frame#" << expected_frame_seq << " -> stamp#" << hw_stamp_seq <<
@@ -228,7 +235,7 @@ class ExternalTimestamping {
             " -> t_new " << hw_stamp.toSec() << 
             std::setprecision(7) << " delay: " << age_buffered_frame);
         
-        _frame_buffer[channel].frame.reset();
+        _frame_buffer[channel].img.reset();
         return true;
     }
 
@@ -260,7 +267,7 @@ class ExternalTimestamping {
         for (auto channel : _channel_set) {
             if (!lookupFrame(channel, hw_stamp_seq, hw_stamp, arrival_stamp)) {
                 // buffer hw_stamp if lookupFrame returns false
-                _frame_buffer[channel].frame.reset();
+                _frame_buffer[channel].img.reset();
                 _hw_stamp_buffer[channel].seq = hw_stamp_seq;
                 _hw_stamp_buffer[channel].arrival_stamp = arrival_stamp;
                 _hw_stamp_buffer[channel].hw_stamp = hw_stamp;

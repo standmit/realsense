@@ -215,19 +215,21 @@ void BaseRealSenseNode::getParameters()
         // define function to publish restamped frames
         std::function<void(const stream_index_pair& channel,
                            const ros::Time& new_stamp,
-                           const std::shared_ptr<frame_buffer_type>&)> publish_frame_fn = [this](const stream_index_pair& channel,
-                                                                                          const ros::Time& new_stamp,
-                                                                                          const  std::shared_ptr<frame_buffer_type>& frame_ptr){
+                           const sensor_msgs::ImagePtr image,
+                           const sensor_msgs::CameraInfo)> publish_frame_fn = [this](const stream_index_pair& channel,
+                                                                                     const ros::Time& new_stamp,
+                                                                                     const sensor_msgs::ImagePtr img,
+                                                                                     sensor_msgs::CameraInfo info){
             // restamp frame
-            frame_ptr->img->header.stamp = new_stamp;
-            frame_ptr->info.header.stamp = new_stamp;
+            img->header.stamp = new_stamp;
+            info.header.stamp = new_stamp;
 
             //publish
             auto& info_publisher = this->_info_publisher.at(channel);
             auto& image_publisher = this->_image_publishers.at(channel);
-            info_publisher.publish(frame_ptr->info);
+            info_publisher.publish(info);
 
-            image_publisher.first.publish(frame_ptr->img);
+            image_publisher.first.publish(img);
             image_publisher.second->update();
 
             ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
@@ -1444,12 +1446,9 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
             }
 
             ros::spinOnce();
-            auto frame = std::make_shared<frame_buffer_type>();
-            frame->img = img;
-            frame->info = cam_info;
-            if(!_external_timestamper.lookupHardwareStamp(stream, img->header.seq, t, exposure, frame)){
+            if(!_external_timestamper.lookupHardwareStamp(stream, img->header.seq, t, exposure, img, cam_info)){
                 // buffer frame if no matching timestamp was found
-                _external_timestamper.bufferFrame(stream, img->header.seq, t, exposure, frame);
+                _external_timestamper.bufferFrame(stream, img->header.seq, t, exposure, img, cam_info);
             }
             return;
         }
