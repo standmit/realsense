@@ -209,34 +209,6 @@ void BaseRealSenseNode::getParameters()
     _pnh.param("inter_cam_sync_mode", _inter_cam_sync_mode, INTER_CAM_SYNC_MODE);
     _pnh.param("external_hw_sync", _external_hw_sync, EXTERNAL_HW_SYNC);
     _pnh.param("static_time_offset", _static_time_offset, STATIC_TIME_OFFSET);
-
-    // setup external hardware synchronization
-    if(_external_hw_sync){
-        // define function to publish restamped frames
-        std::function<void(const stream_index_pair& channel,
-                           const ros::Time& new_stamp,
-                           const sensor_msgs::ImagePtr image,
-                           const sensor_msgs::CameraInfo)> publish_frame_fn = [this](const stream_index_pair& channel,
-                                                                                     const ros::Time& new_stamp,
-                                                                                     const sensor_msgs::ImagePtr img,
-                                                                                     sensor_msgs::CameraInfo info){
-            // restamp frame
-            img->header.stamp = new_stamp;
-            info.header.stamp = new_stamp;
-
-            //publish
-            auto& info_publisher = this->_info_publisher.at(channel);
-            auto& image_publisher = this->_image_publishers.at(channel);
-            info_publisher.publish(info);
-
-            image_publisher.first.publish(img);
-            image_publisher.second->update();
-
-            ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
-        };
-        // setup external time stamping and hand-over the the function that shall be used to publish restamped frames
-        _external_timestamper.setup(publish_frame_fn, _fps[DEPTH], _static_time_offset, _inter_cam_sync_mode);
-    }
 }
 
 void BaseRealSenseNode::setupDevice()
@@ -338,7 +310,7 @@ void BaseRealSenseNode::setupDevice()
             }
         }
 
-        // set cam sync mode
+        // set inter cam sync mode
         if(_inter_cam_sync_mode != 0)
         {
             _sensors[DEPTH].set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, _inter_cam_sync_mode);
@@ -636,6 +608,31 @@ void BaseRealSenseNode::setupStreams()
         }
 
         if(_external_hw_sync) {
+            // setup external hardware synchronization
+            // define function to publish restamped frames
+            std::function<void(const stream_index_pair& channel,
+                               const ros::Time& new_stamp,
+                               const sensor_msgs::ImagePtr image,
+                               const sensor_msgs::CameraInfo)> publish_frame_fn = [this](const stream_index_pair& channel,
+                                                                                         const ros::Time& new_stamp,
+                                                                                         const sensor_msgs::ImagePtr img,
+                                                                                         sensor_msgs::CameraInfo info){
+                // restamp frame
+                img->header.stamp = new_stamp;
+                info.header.stamp = new_stamp;
+
+                //publish
+                auto& info_publisher = this->_info_publisher.at(channel);
+                auto& image_publisher = this->_image_publishers.at(channel);
+                info_publisher.publish(info);
+
+                image_publisher.first.publish(img);
+                image_publisher.second->update();
+
+                ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
+            };
+            // setup and pass publisher function 
+            _external_timestamper.setup(publish_frame_fn, _fps[DEPTH], _static_time_offset, _inter_cam_sync_mode);
             _external_timestamper.start();
         }
 
