@@ -50,6 +50,25 @@ class ExternalTimestamping {
         }
     } hw_stamp_buffer_type;
 
+ private:
+    ros::NodeHandle nh_;
+
+    const std::set<t_chanel_id> _channel_set;
+    int _hw_stamp_seq_offset = 0;
+    double _static_time_offset;
+    int _inter_cam_sync_mode;
+    int _frame_rate;
+
+    ros::Subscriber _cam_imu_sub;
+    
+    std::mutex _mutex;
+
+    pub_frame_fn _publish_frame_fn;
+    sync_state _state;
+
+    const std::string _log_prefix = "[HW timesync] ";
+    std::map<t_chanel_id, hw_stamp_buffer_type> _hw_stamp_buffer;
+    std::map<t_chanel_id, frame_buffer_type> _frame_buffer;
 
  public:
 
@@ -275,25 +294,6 @@ class ExternalTimestamping {
         }
     }
 
- private:
-    ros::NodeHandle nh_;
-
-    const std::set<t_chanel_id> _channel_set;
-    int _hw_stamp_seq_offset = 0;
-    double _static_time_offset;
-    int _inter_cam_sync_mode;
-    int _frame_rate;
-
-    ros::Subscriber _cam_imu_sub;
-    
-    std::mutex _mutex;
-
-    pub_frame_fn _publish_frame_fn;
-    sync_state _state;
-
-    const std::string _log_prefix = "[HW timesync] ";
-    std::map<t_chanel_id, hw_stamp_buffer_type> _hw_stamp_buffer;
-    std::map<t_chanel_id, frame_buffer_type> _frame_buffer;
 
 };
 
