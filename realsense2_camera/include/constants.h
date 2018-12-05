@@ -1,6 +1,11 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2018 Intel Corporation. All Rights Reserved
 
+/***
+* Modified by Andrey Stepanov aka standmit (standmit@yandex.ru):
+* 2018-12-05 -- sync modes names added
+***/
+
 #pragma once
 
 #include <string>
@@ -94,6 +99,11 @@ namespace realsense2_camera
 
     const std::string DEFAULT_FILTERS                  = "";
     const int INTER_CAM_SYNC_MODE                      = 0;
+    const std::string sync_modes_names[] = {
+        "DEFAULT",
+        "MASTER",
+        "SLAVE"
+    };
     const double STATIC_TIME_OFFSET                    = 0.0;
     const bool EXTERNAL_HW_SYNC                        = false;
 

@@ -1,6 +1,11 @@
 // License: Apache 2.0. See LICENSE file in root directory.
 // Copyright(c) 2018 Intel Corporation. All Rights Reserved
 
+/***
+* Modified by Andrey Stepanov aka standmit (standmit@yandex.ru):
+* 2018-12-05 -- parameter 'depth_output_trigger_enabled' deleted
+***/
+
 #pragma once
 
 #include "../include/rs435_external_timestamping.h"
@@ -21,7 +26,6 @@ namespace realsense2_camera
         base_depth_visual_preset,
         base_depth_frames_queue_size,
         base_depth_error_polling_enabled,
-        base_depth_output_trigger_enabled,
         base_depth_units,
         base_sensors_enabled,
         base_JSON_file_path,
@@ -199,7 +203,7 @@ namespace realsense2_camera
 
         std::map<stream_index_pair, bool> _is_frame_arrived;
         const std::string _namespace;
-        
+
         int _inter_cam_sync_mode;
         bool _enable_external_hw_sync;
         double _static_time_offset;

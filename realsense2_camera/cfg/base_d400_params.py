@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Modified by Andrey Stepanov aka standmit (standmit@yandex.ru):
+# 2018-12-05 -- parameter 'depth_output_trigger_enabled' deleted
 
 from dynamic_reconfigure.parameter_generator_catkin import *
 
@@ -17,7 +19,6 @@ def add_base_params(gen, prefix):
   gen.add(str(prefix) + "depth_visual_preset",                     int_t,    3,  "D400 Visual Presets", 0, 0, 5, edit_method=preset_enum)
   gen.add(str(prefix) + "depth_frames_queue_size",                 int_t,    4,  "Frames Queue Size",         16,        0,      32)
   gen.add(str(prefix) + "depth_error_polling_enabled",             bool_t,   5,  "Error Polling Enabled",     False)
-  gen.add(str(prefix) + "depth_output_trigger_enabled",            bool_t,   6,  "Output Trigger Enabled",    False)
   gen.add(str(prefix) + "depth_units",                             double_t, 7,  "Depth Units",               0.001,     0.001,  0.001)
   gen.add(str(prefix) + "sensors_enabled",                 bool_t,   8,  "Sensors Enabled",   True)
   gen.add(str(prefix) + "JSON_file_path",                          str_t,    9,  "JSON_file_path",            "")

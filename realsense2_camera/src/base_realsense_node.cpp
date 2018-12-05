@@ -1,3 +1,9 @@
+/***
+* Modified by Andrey Stepanov aka standmit (standmit@yandex.ru):
+* 2018-12-05 -- parameter 'depth_output_trigger_enabled' deleted;
+*            -- output trigger enabled now by selecting MASTER mode
+***/
+
 #include "../include/base_realsense_node.h"
 #include "../include/sr300_node.h"
 #include "assert.h"
@@ -311,11 +317,10 @@ void BaseRealSenseNode::setupDevice()
         }
 
         // set inter cam sync mode
-        if(_inter_cam_sync_mode != 0)
-        {
+        if (_inter_cam_sync_mode != 0) {
             _sensors[DEPTH].set_option(RS2_OPTION_INTER_CAM_SYNC_MODE, _inter_cam_sync_mode);
-            _sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, 1);
-            ROS_INFO_STREAM("Inter cam sync mode set to " << _inter_cam_sync_mode);
+            ROS_INFO_STREAM("Inter cam sync mode set to " << sync_modes_names[_inter_cam_sync_mode]);
+            _sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, (_inter_cam_sync_mode == 1));
         }
     }
     catch(const std::exception& ex)
@@ -1519,7 +1524,6 @@ void BaseD400Node::setParam(rs435_paramsConfig &config, base_depth_param param)
     base_config.base_depth_visual_preset = config.rs435_depth_visual_preset;
     base_config.base_depth_frames_queue_size = config.rs435_depth_frames_queue_size;
     base_config.base_depth_error_polling_enabled = config.rs435_depth_error_polling_enabled;
-    base_config.base_depth_output_trigger_enabled = config.rs435_depth_output_trigger_enabled;
     base_config.base_depth_units = config.rs435_depth_units;
     base_config.base_JSON_file_path = config.rs435_JSON_file_path;
     base_config.base_sensors_enabled = config.rs435_sensors_enabled;
@@ -1534,7 +1538,6 @@ void BaseD400Node::setParam(rs415_paramsConfig &config, base_depth_param param)
     base_config.base_depth_visual_preset = config.rs415_depth_visual_preset;
     base_config.base_depth_frames_queue_size = config.rs415_depth_frames_queue_size;
     base_config.base_depth_error_polling_enabled = config.rs415_depth_error_polling_enabled;
-    base_config.base_depth_output_trigger_enabled = config.rs415_depth_output_trigger_enabled;
     base_config.base_depth_units = config.rs415_depth_units;
     base_config.base_JSON_file_path = config.rs415_JSON_file_path;
     base_config.base_sensors_enabled = config.rs415_sensors_enabled;
@@ -1568,10 +1571,6 @@ void BaseD400Node::setParam(base_d400_paramsConfig &config, base_depth_param par
     case base_depth_error_polling_enabled:
         ROS_DEBUG_STREAM("base_depth_error_polling_enabled: " << config.base_depth_error_polling_enabled);
         setOption(DEPTH, RS2_OPTION_ERROR_POLLING_ENABLED, config.base_depth_error_polling_enabled);
-        break;
-    case base_depth_output_trigger_enabled:
-        ROS_DEBUG_STREAM("base_depth_output_trigger_enabled: " << config.base_depth_output_trigger_enabled);
-        setOption(DEPTH, RS2_OPTION_OUTPUT_TRIGGER_ENABLED, config.base_depth_output_trigger_enabled);
         break;
     case base_depth_units:
         break;
