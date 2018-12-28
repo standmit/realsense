@@ -28,7 +28,7 @@ BaseRealSenseNode::BaseRealSenseNode(ros::NodeHandle& nodeHandle,
     _serial_no(serial_no), _base_frame_id(""),
     _intialize_time_base(false),
     _namespace(getNamespaceStr()),
-    _external_timestamper(std::set<stream_index_pair>({INFRA1}))
+    _external_timestamper(std::set<stream_index_pair>({INFRA1, INFRA2}))
 {
     // Types for depth stream
     _is_frame_arrived[DEPTH] = false;
