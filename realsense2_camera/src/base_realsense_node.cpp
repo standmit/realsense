@@ -82,7 +82,8 @@ BaseRealSenseNode::BaseRealSenseNode(ros::NodeHandle& nodeHandle,
                                      rs2::device dev,
                                      const std::string& serial_no) :
     _base_frame_id(""),  _node_handle(nodeHandle),
-    _pnh(privateNodeHandle), _dev(dev), _json_file_path(""),
+    _pnh(privateNodeHandle), _dev(dev),
+    _json_file_path(""),
     _serial_no(serial_no),
     _is_initialized_time_base(false),
     _namespace(getNamespaceStr())
@@ -416,6 +417,20 @@ void BaseRealSenseNode::getParameters()
     _pnh.param("filters", _filters_str, DEFAULT_FILTERS);
     _pointcloud |= (_filters_str.find("pointcloud") != std::string::npos);
 
+    _pnh.param("decimation_value", _decimation_value, DECIMATION_VALUE);
+    _pnh.param("laser_power",      _laser_power,      LASER_POWER);
+
+    _depth_control_data.deepSeaSecondPeakThreshold = uint32_t( _pnh.param<int>("depth_control_ds_second_peak_threshold",   DEPTH_CONTROL_DS_SECOND_PEAK_THRESHOLD) );
+    _depth_control_data.deepSeaNeighborThreshold   = uint32_t( _pnh.param<int>("depth_control_ds_neighbor_threshold",      DEPTH_CONTROL_DS_NEIGHBOR_THRESHOLD) );
+    _depth_control_data.deepSeaMedianThreshold     = uint32_t( _pnh.param<int>("depth_control_ds_median_threshold",        DEPTH_CONTROL_DS_MEDIAN_THRESHOLD) );
+    _depth_control_data.plusIncrement              = uint32_t( _pnh.param<int>("depth_control_estimate_median_increment",  DEPTH_CONTROL_ESTIMATE_MEDIAN_INCREMENT) );
+    _depth_control_data.minusDecrement             = uint32_t( _pnh.param<int>("depth_control_estimate_median_decrement",  DEPTH_CONTROL_ESTIMATE_MEDIAN_DECREMENT) );
+    _depth_control_data.scoreThreshA               = uint32_t( _pnh.param<int>("depth_control_score_minimum_threshold",    DEPTH_CONTROL_SCORE_MINIMUM_THRESHOLD) );
+    _depth_control_data.scoreThreshB               = uint32_t( _pnh.param<int>("depth_control_score_maximum_threshold",    DEPTH_CONTROL_SCORE_MAXIMUM_THRESHOLD) );
+    _depth_control_data.lrAgreeThreshold           = uint32_t( _pnh.param<int>("depth_control_ds_lr_threshold",            DEPTH_CONTROL_DS_LR_THRESHOLD) );
+    _depth_control_data.textureCountThreshold      = uint32_t( _pnh.param<int>("depth_control_texture_count_threshold",    DEPTH_CONTROL_TEXTURE_COUNT_THRESHOLD) );
+    _depth_control_data.textureDifferenceThreshold = uint32_t( _pnh.param<int>("depth_control_difference_count_threshold", DEPTH_CONTROL_DIFFERENCE_COUNT_THRESHOLD) );
+
     _pnh.param("enable_sync", _sync_frames, SYNC_FRAMES);
     if (_pointcloud || _align_depth || _filters_str.size() > 0)
         _sync_frames = true;
@@ -512,13 +527,26 @@ void BaseRealSenseNode::setupDevice()
                     ROS_INFO_STREAM("JSON file is loaded! (" << _json_file_path << ")");
                 }
                 else
+                {
                     ROS_WARN_STREAM("JSON file provided doesn't exist! (" << _json_file_path << ")");
+                }
             }
             else
+            {
                 ROS_WARN("Device does not support advanced settings!");
+            }
         }
         else
+        {
             ROS_INFO("JSON file is not provided");
+        }
+
+        if (_dev.is<rs400::advanced_mode>())
+        {
+            auto adv = _dev.as<rs400::advanced_mode>();
+            adv.set_laser_power(_laser_power);
+            adv.set_depth_control(_depth_control_data);
+        }
 
         ROS_INFO_STREAM("ROS Node Namespace: " << _namespace);
 
@@ -927,7 +955,7 @@ void BaseRealSenseNode::setupFilters()
     if (use_decimation_filter)
     {
       ROS_INFO("Add Filter: decimation");
-      _filters.insert(_filters.begin(),NamedFilter("decimation", std::make_shared<rs2::decimation_filter>()));
+      _filters.insert(_filters.begin(),NamedFilter("decimation", std::make_shared<rs2::decimation_filter>(_decimation_value)));
     }
     if (use_colorizer_filter)
     {

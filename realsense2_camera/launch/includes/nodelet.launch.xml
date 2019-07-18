@@ -34,7 +34,7 @@
   <arg name="enable_gyro"         default="true"/>
   <arg name="enable_accel"        default="true"/>
 
-  <arg name="enable_pointcloud"   default="false"/>
+  <arg name="enable_pointcloud"   default="true"/>
   <arg name="pointcloud_texture_stream" default="RS2_STREAM_COLOR"/>  <!-- use RS2_STREAM_ANY to avoid using texture -->
   <arg name="pointcloud_texture_index"  default="0"/>
 
@@ -77,11 +77,25 @@
   <arg name="calib_odom_file"          default=""/>
   <arg name="publish_odom_tf"          default="true"/>
   <arg name="filters"                  default=""/>
+  <arg name="decimation_value"         default="2.0"/>
+  <arg name="laser_power"              default="150.0"/>
   <arg name="clip_distance"            default="-1"/>
   <arg name="linear_accel_cov"         default="0.01"/>
   <arg name="initial_reset"            default="false"/>
   <arg name="unite_imu_method"         default="none"/> <!-- Options are: [none, copy, linear_interpolation] -->
   <arg name="allow_no_texture_points"  default="false"/>
+
+  <!-- Depth Control -->
+  <arg name="depth_control_ds_second_peak_threshold"   default="325"/>
+  <arg name="depth_control_ds_neighbor_threshold"      default="7"/>
+  <arg name="depth_control_ds_median_threshold"        default="500"/>
+  <arg name="depth_control_estimate_median_increment"  default="10"/>
+  <arg name="depth_control_estimate_median_decrement"  default="10"/>
+  <arg name="depth_control_score_minimum_threshold"    default="1"/>
+  <arg name="depth_control_score_maximum_threshold"    default="2047"/>
+  <arg name="depth_control_ds_lr_threshold"            default="24"/>
+  <arg name="depth_control_texture_count_threshold"    default="0"/>
+  <arg name="depth_control_difference_count_threshold" default="0"/>
 
 
   <node unless="$(arg external_manager)" pkg="nodelet" type="nodelet" name="$(arg manager)" args="manager" output="screen"/>
@@ -155,16 +169,29 @@
     <param name="aligned_depth_to_fisheye1_frame_id" type="str"  value="$(arg aligned_depth_to_fisheye1_frame_id)"/>
     <param name="aligned_depth_to_fisheye2_frame_id" type="str"  value="$(arg aligned_depth_to_fisheye2_frame_id)"/>
 
-    <param name="odom_frame_id"            type="str"  value="$(arg odom_frame_id)"/>
-    <param name="topic_odom_in"            type="str"  value="$(arg topic_odom_in)"/>
+    <param name="odom_frame_id"            type="str"    value="$(arg odom_frame_id)"/>
+    <param name="topic_odom_in"            type="str"    value="$(arg topic_odom_in)"/>
     <param name="calib_odom_file"          type="str"    value="$(arg calib_odom_file)"/>
-    <param name="publish_odom_tf"          type="bool" value="$(arg publish_odom_tf)"/>
+    <param name="publish_odom_tf"          type="bool"   value="$(arg publish_odom_tf)"/>
     <param name="filters"                  type="str"    value="$(arg filters)"/>
+    <param name="decimation_value"         type="double" value="$(arg decimation_value)"/>
+    <param name="laser_power"              type="double" value="$(arg laser_power)"/>
     <param name="clip_distance"            type="double" value="$(arg clip_distance)"/>
     <param name="linear_accel_cov"         type="double" value="$(arg linear_accel_cov)"/>
     <param name="initial_reset"            type="bool"   value="$(arg initial_reset)"/>
     <param name="unite_imu_method"         type="str"    value="$(arg unite_imu_method)"/>
     <param name="allow_no_texture_points"  type="bool"   value="$(arg allow_no_texture_points)"/>
 
+    <!-- Depth Control -->
+    <param name="depth_control_ds_second_peak_threshold"   value="$(arg depth_control_ds_second_peak_threshold)"/>
+    <param name="depth_control_ds_neighbor_threshold"      value="$(arg depth_control_ds_neighbor_threshold)"/>
+    <param name="depth_control_ds_median_threshold"        value="$(arg depth_control_ds_median_threshold)"/>
+    <param name="depth_control_estimate_median_increment"  value="$(arg depth_control_estimate_median_increment)"/>
+    <param name="depth_control_estimate_median_decrement"  value="$(arg depth_control_estimate_median_decrement)"/>
+    <param name="depth_control_score_minimum_threshold"    value="$(arg depth_control_score_minimum_threshold)"/>
+    <param name="depth_control_score_maximum_threshold"    value="$(arg depth_control_score_maximum_threshold)"/>
+    <param name="depth_control_ds_lr_threshold"            value="$(arg depth_control_ds_lr_threshold)"/>
+    <param name="depth_control_texture_count_threshold"    value="$(arg depth_control_texture_count_threshold)"/>
+    <param name="depth_control_difference_count_threshold" value="$(arg depth_control_difference_count_threshold)"/>
   </node>
 </launch>

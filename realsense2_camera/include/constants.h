@@ -85,6 +85,19 @@ namespace realsense2_camera
     const std::string DEFAULT_FILTERS                  = "";
     const std::string DEFAULT_TOPIC_ODOM_IN            = "";
 
-    const float ROS_DEPTH_SCALE = 0.001;
+    const float  ROS_DEPTH_SCALE  = 0.001f;
+    const double DECIMATION_VALUE = 2.0;
+    const float  LASER_POWER      = 150.0;
+
+    const int DEPTH_CONTROL_DS_SECOND_PEAK_THRESHOLD   = 325;
+    const int DEPTH_CONTROL_DS_NEIGHBOR_THRESHOLD      = 7;
+    const int DEPTH_CONTROL_DS_MEDIAN_THRESHOLD        = 500;
+    const int DEPTH_CONTROL_ESTIMATE_MEDIAN_INCREMENT  = 10;
+    const int DEPTH_CONTROL_ESTIMATE_MEDIAN_DECREMENT  = 10;
+    const int DEPTH_CONTROL_SCORE_MINIMUM_THRESHOLD    = 1;
+    const int DEPTH_CONTROL_SCORE_MAXIMUM_THRESHOLD    = 2047;
+    const int DEPTH_CONTROL_DS_LR_THRESHOLD            = 24;
+    const int DEPTH_CONTROL_TEXTURE_COUNT_THRESHOLD    = 0;
+    const int DEPTH_CONTROL_DIFFERENCE_COUNT_THRESHOLD = 0;
     using stream_index_pair = std::pair<rs2_stream, int>;
 }  // namespace realsense2_camera

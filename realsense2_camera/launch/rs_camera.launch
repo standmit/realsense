@@ -32,14 +32,16 @@
   <arg name="enable_gyro"         default="true"/>
   <arg name="enable_accel"        default="true"/>
 
-  <arg name="enable_pointcloud"         default="false"/>
+  <arg name="enable_pointcloud"         default="true"/>
   <arg name="pointcloud_texture_stream" default="RS2_STREAM_COLOR"/>
   <arg name="pointcloud_texture_index"  default="0"/>
 
   <arg name="enable_sync"               default="false"/>
   <arg name="align_depth"               default="false"/>
 
-  <arg name="filters"                   default=""/>
+  <arg name="filters"                   default="decimation"/>
+  <arg name="decimation_value"          default="2.0"/>
+  <arg name="laser_power"               default="150.0"/>
   <arg name="clip_distance"             default="-2"/>
   <arg name="linear_accel_cov"          default="0.01"/>
   <arg name="initial_reset"             default="false"/>
@@ -48,6 +50,17 @@
   <arg name="calib_odom_file"           default=""/>
   <arg name="publish_odom_tf"           default="true"/>
   <arg name="allow_no_texture_points"   default="false"/>
+
+  <arg name="depth_control_ds_second_peak_threshold"   default="325"/>
+  <arg name="depth_control_ds_neighbor_threshold"      default="7"/>
+  <arg name="depth_control_ds_median_threshold"        default="500"/>
+  <arg name="depth_control_estimate_median_increment"  default="10"/>
+  <arg name="depth_control_estimate_median_decrement"  default="10"/>
+  <arg name="depth_control_score_minimum_threshold"    default="1"/>
+  <arg name="depth_control_score_maximum_threshold"    default="2047"/>
+  <arg name="depth_control_ds_lr_threshold"            default="24"/>
+  <arg name="depth_control_texture_count_threshold"    default="0"/>
+  <arg name="depth_control_difference_count_threshold" default="0"/>
 
   
   <group ns="$(arg camera)">
@@ -91,6 +104,8 @@
       <arg name="enable_accel"             value="$(arg enable_accel)"/>
 
       <arg name="filters"                  value="$(arg filters)"/>
+      <arg name="decimation_value"         value="$(arg decimation_value)"/>
+      <arg name="laser_power"              value="$(arg laser_power)"/>
       <arg name="clip_distance"            value="$(arg clip_distance)"/>
       <arg name="linear_accel_cov"         value="$(arg linear_accel_cov)"/>
       <arg name="initial_reset"            value="$(arg initial_reset)"/>
@@ -99,6 +114,18 @@
       <arg name="calib_odom_file"          value="$(arg calib_odom_file)"/>
       <arg name="publish_odom_tf"          value="$(arg publish_odom_tf)"/>
       <arg name="allow_no_texture_points"  value="$(arg allow_no_texture_points)"/>
+
+      <!-- Depth Control -->
+      <arg name="depth_control_ds_second_peak_threshold"   value="$(arg depth_control_ds_second_peak_threshold)"/>
+      <arg name="depth_control_ds_neighbor_threshold"      value="$(arg depth_control_ds_neighbor_threshold)"/>
+      <arg name="depth_control_ds_median_threshold"        value="$(arg depth_control_ds_median_threshold)"/>
+      <arg name="depth_control_estimate_median_increment"  value="$(arg depth_control_estimate_median_increment)"/>
+      <arg name="depth_control_estimate_median_decrement"  value="$(arg depth_control_estimate_median_decrement)"/>
+      <arg name="depth_control_score_minimum_threshold"    value="$(arg depth_control_score_minimum_threshold)"/>
+      <arg name="depth_control_score_maximum_threshold"    value="$(arg depth_control_score_maximum_threshold)"/>
+      <arg name="depth_control_ds_lr_threshold"            value="$(arg depth_control_ds_lr_threshold)"/>
+      <arg name="depth_control_texture_count_threshold"    value="$(arg depth_control_texture_count_threshold)"/>
+      <arg name="depth_control_difference_count_threshold" value="$(arg depth_control_difference_count_threshold)"/>
     </include>
   </group>
 </launch>

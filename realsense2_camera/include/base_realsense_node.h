@@ -275,6 +275,11 @@ namespace realsense2_camera
         std::vector<rs2::sensor> _dev_sensors;
         std::map<rs2_stream, std::shared_ptr<rs2::align>> _align;
 
+        double _decimation_value;
+        float  _laser_power;
+
+        STDepthControlGroup _depth_control_data;
+
         std::map<stream_index_pair, cv::Mat> _depth_aligned_image;
         std::map<stream_index_pair, cv::Mat> _depth_scaled_image;
         std::map<rs2_stream, std::string> _depth_aligned_encoding;
