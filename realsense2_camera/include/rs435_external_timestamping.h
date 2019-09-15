@@ -200,7 +200,7 @@ class ExternalTimestamping {
         hw_stamp = shiftTimestampToMidExposure(hw_stamp, exposure);
         _publish_frame_fn(channel, hw_stamp, img, info);
 
-        ROS_INFO_STREAM(_log_prefix <<  std::setprecision(15) << 
+        ROS_DEBUG_STREAM(_log_prefix <<  std::setprecision(15) << 
             "frame#" << frame_seq << " -> stamp#" << expected_hw_stamp_seq <<
             ", t_cam " << cam_stamp.toSec() << " -> t_hw " << hw_stamp.toSec() << 
             std::setprecision(7) << " delay: " << age_buffered_hw_stamp);
