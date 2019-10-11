@@ -118,12 +118,6 @@ namespace realsense2_camera
         void setupStreams();
         void updateStreamCalibData(const rs2::video_stream_profile& video_profile);
         tf::Quaternion rotationMatrixToQuaternion(const float rotation[9]) const;
-        void publish_static_tf(const ros::Time& t,
-                               const float3& trans,
-                               const quaternion& q,
-                               const std::string& from,
-                               const std::string& to);
-        void publishStaticTransforms();
         void publishPointCloud(rs2::points f, const ros::Time& t, const rs2::frameset& frameset);
         rs2::frame get_frame(const rs2::frameset& frameset, const rs2_stream stream, const int index = 0);
         Extrinsics rsExtrinsicsToMsg(const rs2_extrinsics& extrinsics, const std::string& frame_id) const;
@@ -158,7 +152,6 @@ namespace realsense2_camera
         std::map<stream_index_pair, int> _fps;
         std::map<stream_index_pair, bool> _enable;
         std::map<stream_index_pair, std::string> _stream_name;
-        tf2_ros::StaticTransformBroadcaster _static_tf_broadcaster;
 
         std::map<stream_index_pair, ImagePublisherWithFrequencyDiagnostics> _image_publishers;
         std::map<stream_index_pair, ros::Publisher> _imu_publishers;
