@@ -211,6 +211,12 @@ namespace realsense2_camera
                           const std::map<stream_index_pair, std::string>& optical_frame_id,
                           const std::map<rs2_stream, std::string>& encoding,
                           bool copy_data_from_frame = true);
+        void mergeThenPublishFrames(const std::vector<rs2::frame> &infra_frames,
+                                    const ros::Time& t,
+                                    const std::vector<stream_index_pair> &infra_streams,
+                                    std::map<stream_index_pair, cv::Mat>& images,
+                                    const std::map<stream_index_pair, std::string>& optical_frame_id,
+                                    const std::map<rs2_stream, std::string>& encoding);
         bool getEnabledProfile(const stream_index_pair& stream_index, rs2::stream_profile& profile);
 
         void publishAlignedDepthToOthers(rs2::frameset frames, const ros::Time& t);
@@ -292,6 +298,13 @@ namespace realsense2_camera
 
         const std::string _namespace;
 
+    //! ntrlab
+    protected:
+        bool                       _f_publish_infra_merged_frames;
+        image_transport::Publisher _pub_infra_merged;
+        cv::Mat                    _infra_merged_image;
+        std::string                _infra_merged_publish_path;
+        int                        _infra_merged_seq;
     };//end class
 
 }

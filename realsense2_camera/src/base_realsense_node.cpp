@@ -86,7 +86,9 @@ BaseRealSenseNode::BaseRealSenseNode(ros::NodeHandle& nodeHandle,
     _json_file_path(""),
     _serial_no(serial_no),
     _is_initialized_time_base(false),
-    _namespace(getNamespaceStr())
+    _namespace(getNamespaceStr()),
+    _f_publish_infra_merged_frames(true),
+    _infra_merged_seq(0)
 {
     // Types for depth stream
     _image_format[RS2_STREAM_DEPTH] = CV_16UC1;    // CVBridge type
@@ -505,6 +507,9 @@ void BaseRealSenseNode::getParameters()
     _pnh.param("angular_velocity_cov", _angular_velocity_cov, static_cast<double>(0.01));
     _pnh.param("hold_back_imu_for_frames", _hold_back_imu_for_frames, HOLD_BACK_IMU_FOR_FRAMES);
     _pnh.param("publish_odom_tf", _publish_odom_tf, PUBLISH_ODOM_TF);
+
+    //! ntrlab
+    _pnh.param<std::string>("merged_infra_publish_topic_path", _infra_merged_publish_path, "/realsense/infra_merged");
 }
 
 void BaseRealSenseNode::setupDevice()
@@ -756,6 +761,12 @@ void BaseRealSenseNode::setupPublishers()
         _enable[DEPTH])
     {
         _depth_to_other_extrinsics_publishers[INFRA2] = _node_handle.advertise<Extrinsics>("extrinsics/depth_to_infra2", 1, true);
+    }
+
+    //! ntrlab
+    if (_f_publish_infra_merged_frames)
+    {
+        _pub_infra_merged = image_transport.advertise(_infra_merged_publish_path, 1);
     }
 }
 
@@ -1482,6 +1493,8 @@ void BaseRealSenseNode::frame_callback(rs2::frame frame)
                 }
             }
 
+            std::vector<rs2::frame>        infra_frames;
+            std::vector<stream_index_pair> infra_indexes;
             for (auto it = frames_to_publish.begin(); it != frames_to_publish.end(); ++it)
             {
                 auto f = (*it);
@@ -1502,6 +1515,14 @@ void BaseRealSenseNode::frame_callback(rs2::frame frame)
                     continue;
                 }
                 stream_index_pair sip{stream_type,stream_index};
+
+                //! saving infra frames for merge
+                if (stream_type == rs2_stream::RS2_STREAM_INFRARED)
+                {
+                    infra_frames .push_back(f);
+                    infra_indexes.push_back(sip);
+                }
+
                 publishFrame(f, t,
                                 sip,
                                 _image,
@@ -1509,6 +1530,17 @@ void BaseRealSenseNode::frame_callback(rs2::frame frame)
                                 _image_publishers, _seq,
                                 _camera_info, _optical_frame_id,
                                 _encoding);
+            }
+
+            //! publishing merged infra image
+            if (_f_publish_infra_merged_frames)
+            {
+                mergeThenPublishFrames( infra_frames,
+                                        t,
+                                        infra_indexes,
+                                        _image,
+                                        _optical_frame_id,
+                                        _encoding );
             }
 
             if (_align_depth && is_depth_arrived)
@@ -2122,6 +2154,71 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         image_publisher.second->update();
         // ROS_INFO_STREAM("fid: " << cam_info.header.seq << ", time: " << std::setprecision (20) << t.toSec());
         ROS_DEBUG("%s stream published", rs2_stream_to_string(f.get_profile().stream_type()));
+    }
+}
+
+void BaseRealSenseNode::mergeThenPublishFrames(const std::vector<rs2::frame> &infra_frames,
+                                               const ros::Time &t,
+                                               const std::vector<stream_index_pair> &infra_streams,
+                                               std::map<stream_index_pair, cv::Mat> &images,
+                                               const std::map<stream_index_pair, std::string> &optical_frame_id,
+                                               const std::map<rs2_stream, std::string> &encoding)
+{
+//    ROS_INFO("mergeThenPublishFrames(...)");
+    unsigned int width = 0;
+    unsigned int height = 0;
+    auto bpp = 1;
+
+    if( infra_frames.size() < 2 )
+    {
+//        ROS_FATAL("FATAL: not enough infra data");
+        return;
+    }
+
+    const stream_index_pair &left_infra_stream  = infra_streams[ 0 ];
+    const stream_index_pair &right_infra_stream = infra_streams[ 1 ];
+
+    cv::Mat &left_img  = images[ left_infra_stream  ];
+    cv::Mat &right_img = images[ right_infra_stream ];
+
+    const rs2::frame &left_frame  = infra_frames[ 0 ];
+    const rs2::frame &right_frame = infra_frames[ 1 ];
+
+    //! updating width, height and bpp data
+    if (left_frame.is<rs2::video_frame>())
+    {
+        auto image = left_frame.as<rs2::video_frame>();
+        width  = static_cast<unsigned int>(image.get_width() * 2);
+        height = static_cast<unsigned int>(image.get_height());
+        bpp    = image.get_bytes_per_pixel();
+    }
+
+    //! if memory not allocated - just do it
+    if (_infra_merged_image.size() != cv::Size(width, height))
+    {
+        _infra_merged_image.create(height, width, _infra_merged_image.type());
+    }
+
+    //! merge left and right infra image into target
+    cv::hconcat(right_img, left_img, _infra_merged_image);
+
+    ++_infra_merged_seq;
+
+    if(0 != _pub_infra_merged.getNumSubscribers())
+    {
+        sensor_msgs::ImagePtr img;
+        img = cv_bridge::CvImage(std_msgs::Header(),
+                                 encoding.at(left_infra_stream.first),
+                                 _infra_merged_image).toImageMsg();
+        img->width  = width;
+        img->height = height;
+        img->step   = width * bpp;
+        img->is_bigendian    = false;
+        img->header.frame_id = optical_frame_id.at(left_infra_stream);
+        img->header.stamp    = t;
+        img->header.seq      = _infra_merged_seq;
+
+        _pub_infra_merged.publish(img);
     }
 }
 
