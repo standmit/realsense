@@ -87,7 +87,7 @@ BaseRealSenseNode::BaseRealSenseNode(ros::NodeHandle& nodeHandle,
     _serial_no(serial_no),
     _is_initialized_time_base(false),
     _namespace(getNamespaceStr()),
-    _external_timestamper(std::set<stream_index_pair>({INFRA1, INFRA2}))
+    _external_timestamper(std::set<stream_index_pair>({INFRA1, INFRA2})),
     _f_publish_infra_merged_frames(true),
     _infra_merged_seq(0)
 {
