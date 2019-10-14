@@ -85,6 +85,11 @@
   <arg name="unite_imu_method"         default="none"/> <!-- Options are: [none, copy, linear_interpolation] -->
   <arg name="allow_no_texture_points"  default="false"/>
 
+  <!-- external timestamping parameters -->
+  <arg name="inter_cam_sync_mode" default="0"/>
+  <arg name="enable_external_hw_sync"    default="false"/>
+  <arg name="static_time_offset"  default="0.0"/>
+
   <!-- Depth Control -->
   <arg name="depth_control_ds_second_peak_threshold"   default="325"/>
   <arg name="depth_control_ds_neighbor_threshold"      default="7"/>
@@ -137,6 +142,11 @@
     <param name="accel_fps"                type="int"  value="$(arg accel_fps)"/>
     <param name="enable_gyro"              type="bool" value="$(arg enable_gyro)"/>
     <param name="enable_accel"             type="bool" value="$(arg enable_accel)"/>
+
+    <!-- external timestamping parameters -->
+    <param name="inter_cam_sync_mode"      type="int"  value="$(arg inter_cam_sync_mode)"/>
+    <param name="enable_external_hw_sync"         type="bool" value="$(arg enable_external_hw_sync)" />
+    <param name="static_time_offset"       type="double" value="$(arg static_time_offset)"/>
 
     <param name="base_frame_id"            type="str"  value="$(arg base_frame_id)"/>
     <param name="depth_frame_id"           type="str"  value="$(arg depth_frame_id)"/>

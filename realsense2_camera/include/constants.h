@@ -40,6 +40,7 @@ namespace realsense2_camera
     const bool POINTCLOUD     = false;
     const bool ALLOW_NO_TEXTURE_POINTS = false;
     const bool SYNC_FRAMES    = false;
+    const bool MAVROS_TRIGGERING = false;
 
     const int IMAGE_WIDTH     = 640;
     const int IMAGE_HEIGHT    = 480;
@@ -84,6 +85,11 @@ namespace realsense2_camera
     const std::string DEFAULT_UNITE_IMU_METHOD         = "";
     const std::string DEFAULT_FILTERS                  = "";
     const std::string DEFAULT_TOPIC_ODOM_IN            = "";
+
+    //!external timestamping consts
+    const int INTER_CAM_SYNC_MODE                      = 0;
+    const double STATIC_TIME_OFFSET                    = 0.0;
+    const bool EXTERNAL_HW_SYNC                        = false;
 
     const float  ROS_DEPTH_SCALE  = 0.001f;
     const double DECIMATION_VALUE = 2.0;

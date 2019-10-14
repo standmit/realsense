@@ -51,6 +51,11 @@
   <arg name="publish_odom_tf"           default="true"/>
   <arg name="allow_no_texture_points"   default="false"/>
 
+  <!-- external timestamping args -->
+  <arg name="inter_cam_sync_mode" default="0"/>
+  <arg name="enable_external_hw_sync"   default="false"/>
+  <arg name="static_time_offset"  default="0.0"/>
+
   <arg name="depth_control_ds_second_peak_threshold"   default="325"/>
   <arg name="depth_control_ds_neighbor_threshold"      default="7"/>
   <arg name="depth_control_ds_median_threshold"        default="500"/>
@@ -114,6 +119,11 @@
       <arg name="calib_odom_file"          value="$(arg calib_odom_file)"/>
       <arg name="publish_odom_tf"          value="$(arg publish_odom_tf)"/>
       <arg name="allow_no_texture_points"  value="$(arg allow_no_texture_points)"/>
+
+      <!-- external timestamping parameters -->
+      <arg name="inter_cam_sync_mode"      value="$(arg inter_cam_sync_mode)"/>
+      <arg name="enable_external_hw_sync"  value="$(arg enable_external_hw_sync)"/>
+      <arg name="static_time_offset"       value="$(arg static_time_offset)"/>
 
       <!-- Depth Control -->
       <arg name="depth_control_ds_second_peak_threshold"   value="$(arg depth_control_ds_second_peak_threshold)"/>

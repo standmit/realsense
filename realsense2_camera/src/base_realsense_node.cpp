@@ -87,6 +87,7 @@ BaseRealSenseNode::BaseRealSenseNode(ros::NodeHandle& nodeHandle,
     _serial_no(serial_no),
     _is_initialized_time_base(false),
     _namespace(getNamespaceStr()),
+    _external_timestamper(std::set<stream_index_pair>({INFRA1})),
     _f_publish_infra_merged_frames(true),
     _infra_merged_seq(0)
 {
@@ -508,6 +509,11 @@ void BaseRealSenseNode::getParameters()
     _pnh.param("hold_back_imu_for_frames", _hold_back_imu_for_frames, HOLD_BACK_IMU_FOR_FRAMES);
     _pnh.param("publish_odom_tf", _publish_odom_tf, PUBLISH_ODOM_TF);
 
+    //! external timestamping parameters
+    _pnh.param("inter_cam_sync_mode", _inter_cam_sync_mode, INTER_CAM_SYNC_MODE);
+    _pnh.param("enable_external_hw_sync", _enable_external_hw_sync, EXTERNAL_HW_SYNC);
+    _pnh.param("static_time_offset", _static_time_offset, STATIC_TIME_OFFSET);
+
     //! ntrlab
     _pnh.param<std::string>("merged_infra_publish_topic_path", _infra_merged_publish_path, "/realsense/infra_merged");
 }
@@ -659,6 +665,14 @@ void BaseRealSenseNode::setupDevice()
                 ROS_INFO_STREAM("(" << rs2_stream_to_string(stream_index.first) << ", " << stream_index.second << ") sensor isn't supported by current device! -- Skipping...");
                 _enable[enable.first] = false;
             }
+        }
+
+        // set inter cam sync mode
+        if(_inter_cam_sync_mode != 0)
+        {
+            _sensors[DEPTH].set_option(RS2_OPTION_INTER_CAM_SYNC_MODE,    _inter_cam_sync_mode);
+            _sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, 1);
+            ROS_INFO_STREAM("Inter cam sync mode set to " << _inter_cam_sync_mode);
         }
     }
     catch(const std::exception& ex)
@@ -1388,6 +1402,7 @@ void BaseRealSenseNode::pose_callback(rs2::frame frame)
 void BaseRealSenseNode::frame_callback(rs2::frame frame)
 {
     _synced_imu_publisher->Pause();
+    ros::spinOnce();
     
     try{
         double frame_time = frame.get_timestamp();
@@ -1402,7 +1417,7 @@ void BaseRealSenseNode::frame_callback(rs2::frame frame)
         }
 
         ros::Time t;
-        if (_sync_frames)
+        if (_sync_frames || _enable_external_hw_sync)
         {
             t = ros::Time::now();
         }
@@ -1564,6 +1579,8 @@ void BaseRealSenseNode::frame_callback(rs2::frame frame)
                     clip_depth(frame, _clipping_distance);
                 }
             }
+
+            ros::spinOnce();
             publishFrame(frame, t,
                             sip,
                             _image,
@@ -1652,6 +1669,35 @@ void BaseRealSenseNode::setupStreams()
             {
                 _depth_scale_meters = sensor.as<rs2::depth_sensor>().get_depth_scale();
             }
+        }
+
+        if(_enable_external_hw_sync) {
+            // setup external hardware synchronization
+            // define function to publish restamped frames
+            std::function<void(const stream_index_pair& channel,
+                               const ros::Time& new_stamp,
+                               const sensor_msgs::ImagePtr image,
+                               const sensor_msgs::CameraInfo)> publish_frame_fn = [this](const stream_index_pair& channel,
+                                                                                         const ros::Time& new_stamp,
+                                                                                         const sensor_msgs::ImagePtr img,
+                                                                                         sensor_msgs::CameraInfo info){
+                // restamp frame
+                img->header.stamp = new_stamp;
+                info.header.stamp = new_stamp;
+
+                //publish
+                auto& info_publisher = this->_info_publisher.at(channel);
+                auto& image_publisher = this->_image_publishers.at(channel);
+                info_publisher.publish(info);
+
+                image_publisher.first.publish(img);
+                image_publisher.second->update();
+
+                ROS_DEBUG("%s stream published", rs2_stream_to_string(channel.first));
+            };
+            // setup and pass publisher function
+            _external_timestamper.setup(publish_frame_fn, _fps[DEPTH], _static_time_offset, _inter_cam_sync_mode);
+            _external_timestamper.start();
         }
     }
     catch(const std::exception& ex)
@@ -2149,6 +2195,28 @@ void BaseRealSenseNode::publishFrame(rs2::frame f, const ros::Time& t,
         cam_info.header.stamp = t;
         cam_info.header.seq = seq[stream];
         info_publisher.publish(cam_info);
+
+        if(_enable_external_hw_sync) {
+            if(_sensors[DEPTH].get_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED) != 1) {
+            _sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, 1);
+        }
+            double exposure;
+            if(f.supports_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE)) {
+                exposure = static_cast<double>(f.get_frame_metadata(RS2_FRAME_METADATA_ACTUAL_EXPOSURE));
+            } else {
+                ROS_WARN_ONCE("Frame does not provide exposure metadata. Using fixed exposure for timestamp.");
+                exposure = _sensors[DEPTH].get_option(RS2_OPTION_EXPOSURE);
+            }
+
+            ros::spinOnce();
+            if(!_external_timestamper.lookupHardwareStamp(stream, img->header.seq, t, exposure, img, cam_info)){
+                // buffer frame if no matching timestamp was found
+                _external_timestamper.bufferFrame(stream, img->header.seq, t, exposure, img, cam_info);
+            }
+            return;
+        }
+
+        // no hw_sync: publish w/o restamping
 
         image_publisher.first.publish(img);
         image_publisher.second->update();

@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "../include/rs435_external_timestamping.h"
 #include "../include/realsense_node_factory.h"
 #include <ddynamic_reconfigure/ddynamic_reconfigure.h>
 
@@ -297,6 +298,12 @@ namespace realsense2_camera
         std::map<stream_index_pair, rs2_extrinsics> _depth_to_other_extrinsics;
 
         const std::string _namespace;
+
+        //! external timestamping fields
+        int _inter_cam_sync_mode;
+        bool _enable_external_hw_sync;
+        double _static_time_offset;
+        external_timestamping::ExternalTimestamping<stream_index_pair> _external_timestamper;
 
     //! ntrlab
     protected:
