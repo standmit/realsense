@@ -2252,7 +2252,7 @@ void BaseRealSenseNode::mergeThenPublishFrames(const std::vector<rs2::frame> &in
     cv::Mat &right_img = images[ right_infra_stream ];
 
     const rs2::frame &left_frame  = infra_frames[ 0 ];
-    const rs2::frame &right_frame = infra_frames[ 1 ];
+//    const rs2::frame &right_frame = infra_frames[ 1 ];
 
     //! updating width, height and bpp data
     if (left_frame.is<rs2::video_frame>())
