@@ -2280,6 +2280,9 @@ void BaseRealSenseNode::mergeThenPublishFrames(const std::vector<rs2::frame> &in
         img = cv_bridge::CvImage(std_msgs::Header(),
                                  encoding.at(left_infra_stream.first),
                                  _infra_merged_image).toImageMsg();
+        cv_bridge::CvImageConstPtr cv_img_ptr(new cv_bridge::CvImage(std_msgs::Header(), encoding.at(left_infra_stream.first), _infra_merged_image));
+        cv_bridge::CvImagePtr cv_img_conv_ptr = cv_bridge::cvtColor(cv_img_ptr, sensor_msgs::image_encodings::MONO8);
+
         img->width  = width;
         img->height = height;
         img->step   = width * bpp;
