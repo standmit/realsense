@@ -128,3 +128,18 @@ install(FILES nodelet_plugins.xml
     DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
     )
 
+
+# Install urdf files
+install(
+    FILES
+        urdf/_d435.urdf.xacro
+        urdf/_r410.urdf.xacro
+        urdf/_r430.urdf.xacro
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/urdf
+    )
+
+# Install mesh files
+install(DIRECTORY meshes/
+    DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/meshes
+    )
+
