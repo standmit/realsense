@@ -671,8 +671,8 @@ void BaseRealSenseNode::setupDevice()
         if(_inter_cam_sync_mode != 0)
         {
             _sensors[DEPTH].set_option(RS2_OPTION_INTER_CAM_SYNC_MODE,    _inter_cam_sync_mode);
-            _sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, 1);
-            ROS_INFO_STREAM("Inter cam sync mode set to " << _inter_cam_sync_mode);
+            _sensors[DEPTH].set_option(RS2_OPTION_OUTPUT_TRIGGER_ENABLED, (_inter_cam_sync_mode == 1));
+            ROS_INFO_STREAM("Inter cam sync mode set to " << sync_modes_names[_inter_cam_sync_mode]);
         }
     }
     catch(const std::exception& ex)

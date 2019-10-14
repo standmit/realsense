@@ -88,6 +88,11 @@ namespace realsense2_camera
 
     //!external timestamping consts
     const int INTER_CAM_SYNC_MODE                      = 0;
+    const std::string sync_modes_names[] = {
+        "DEFAULT",
+        "MASTER",
+        "SLAVE"
+    };
     const double STATIC_TIME_OFFSET                    = 0.0;
     const bool EXTERNAL_HW_SYNC                        = false;
 
